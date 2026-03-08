@@ -1,0 +1,17 @@
+{
+  "name": "rohankar-launcher",
+  "version": "1.0.0",
+  "description": "RohanKar Game Launcher",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "latest",
+    "electron-builder": "latest"
+  },
+  "dependencies": {
+    "axios": "^1.0.0"
+  }
+}

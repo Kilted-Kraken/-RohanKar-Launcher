@@ -1,0 +1,80 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RohanKar Launcher</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="titlebar">
+    <div id="titlebar-left">
+      <img id="app-logo" src="../../assets/icons/rk-logo.jpg" />
+      <span id="app-name">RohanKar Launcher</span>
+    </div>
+    <div id="titlebar-center">
+      <nav id="nav-tabs">
+        <button class="nav-tab active" data-view="library">Library</button>
+        <button class="nav-tab" data-view="browse">Browse</button>
+      </nav>
+    </div>
+    <div id="titlebar-right">
+      <button class="win-btn" id="btn-minimize">&#8722;</button>
+      <button class="win-btn" id="btn-maximize">&#9633;</button>
+      <button class="win-btn" id="btn-close">&#10005;</button>
+    </div>
+  </div>
+  <div id="app-body">
+    <div id="sidebar">
+      <div id="sidebar-search">
+        <input type="text" id="search-input" placeholder="Search games..." />
+      </div>
+      <div id="game-list">
+        <div class="loading-msg">Loading games...</div>
+      </div>
+    </div>
+    <div id="center-panel">
+      <div id="hero-area">
+        <div id="hero-image-wrap">
+          <img id="hero-img" src="" alt="" />
+          <div id="hero-gradient"></div>
+        </div>
+        <div id="hero-info">
+          <div id="hero-title">Select a Game</div>
+          <div id="hero-meta"></div>
+        </div>
+      </div>
+      <div id="content-area">
+        <div id="welcome-msg">
+          <h2>Welcome to RohanKar Launcher</h2>
+          <p>Select a game from the sidebar to view details, or browse all available titles.</p>
+        </div>
+      </div>
+    </div>
+    <div id="detail-panel">
+      <div id="detail-cover-wrap">
+        <img id="detail-cover" src="" alt="" />
+      </div>
+      <div id="detail-info">
+        <div id="detail-title">—</div>
+        <div id="detail-year" class="detail-meta-line"></div>
+        <div id="detail-size" class="detail-meta-line"></div>
+        <div id="detail-downloads" class="detail-meta-line"></div>
+        <div id="detail-desc"></div>
+      </div>
+      <div id="detail-actions">
+        <button class="action-btn primary" id="btn-download" disabled>Download</button>
+        <button class="action-btn" id="btn-launch" disabled>Launch</button>
+        <button class="action-btn danger" id="btn-delete" disabled>Delete</button>
+      </div>
+      <div id="download-progress-wrap" style="display:none">
+        <div id="download-progress-bar">
+          <div id="download-progress-fill"></div>
+        </div>
+        <div id="download-progress-label">Preparing...</div>
+      </div>
+    </div>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>
