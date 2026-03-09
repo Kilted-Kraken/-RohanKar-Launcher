@@ -315,13 +315,20 @@ ipcMain.handle('extract-archive', async (_, { filePath, identifier }) => {
   const ext    = filePath.toLowerCase();
   const sevenZ = 'C:\\Program Files\\7-Zip\\7z.exe';
 
+  // Helper: unblock all files in destDir after extraction
+  const unblockAfterExtract = () => new Promise((resolve) => {
+    if (process.platform !== 'win32') return resolve();
+    const ps = `Get-ChildItem -Path '${destDir}' -Recurse | Unblock-File -ErrorAction SilentlyContinue`;
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], () => resolve());
+  });
+
   if ((ext.endsWith('.zip') || ext.endsWith('.7z') || ext.endsWith('.rar')) && fs.existsSync(sevenZ)) {
     return new Promise((resolve) => {
-      execFile(sevenZ, ['x', filePath, `-o${destDir}`, '-y'], (err) => {
+      execFile(sevenZ, ['x', filePath, `-o${destDir}`, '-y'], async (err) => {
         if (err) return resolve({ ok: false, error: err.message });
+        await unblockAfterExtract();
         if (settings.deleteAfterInstall) {
           fs.unlink(filePath, () => {
-            // Remove the now-empty download folder
             try { fs.rmdirSync(path.dirname(filePath)); } catch {}
           });
         }
@@ -335,9 +342,9 @@ ipcMain.handle('extract-archive', async (_, { filePath, identifier }) => {
     try {
       const extractZip = require('extract-zip');
       await extractZip(filePath, { dir: destDir });
+      await unblockAfterExtract();
       if (settings.deleteAfterInstall) {
         fs.unlink(filePath, () => {
-          // Remove the now-empty download folder
           try { fs.rmdirSync(path.dirname(filePath)); } catch {}
         });
       }
@@ -422,10 +429,9 @@ ipcMain.handle('launch-game', (_, { identifier, exePath }) => {
   return new Promise(async (resolve) => {
     if (!fs.existsSync(exePath)) return resolve({ ok: false, error: 'Executable not found: ' + exePath });
 
-    // Unblock the ENTIRE install directory tree before launching.
-    // DOSBox and other launchers load files from subdirs like GAME\ which are
-    // also blocked by Windows Zone.Identifier — so we unblock from installDir root.
-    const gameRow    = db?.prepare('SELECT install_dir FROM games WHERE identifier = ?').get(identifier);
+    // Unblock the install directory on every launch — covers both freshly installed
+    // games and games that were installed before this fix was added.
+    const gameRow     = db?.prepare('SELECT install_dir FROM games WHERE identifier = ?').get(identifier);
     const unblockRoot = gameRow?.install_dir || path.dirname(exePath);
     await unblockDirectory(unblockRoot);
 
