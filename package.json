@@ -1,6 +1,6 @@
 {
   "name": "rohankar-launcher",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "RohanKar Game Launcher",
   "author": "Kilted-Kraken",
   "main": "src/main/main.js",
