@@ -623,11 +623,13 @@ function setupAutoUpdater() {
     setTimeout(() => autoUpdater.checkForUpdates(), 3000);
   });
 
-  // IPC: renderer asks to download update — open GitHub releases page in browser
-  ipcMain.handle('updater-install', () => {
-    shell.openExternal('https://github.com/Kilted-Kraken/-RohanKar-Launcher/releases/latest');
-  });
-}
+}  
+
+// IPC: renderer asks to download update — always registered, opens GitHub releases page
+ipcMain.removeHandler('updater-install');
+ipcMain.handle('updater-install', () => {
+  shell.openExternal('https://github.com/Kilted-Kraken/-RohanKar-Launcher/releases/latest');
+});
 
 // ─── Archive.org reviews ──────────────────────────────────────────────────────
 
