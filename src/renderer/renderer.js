@@ -629,7 +629,7 @@ async function selectGame(game) {
     `<span id="detail-size"></span>`;
 
   // Fetch file list in background to show size (inline only, not on button)
-  btnDownload.textContent = 'Download';
+  btnDownload.textContent = 'Install';
   const updateSize = (sizeStr) => {
     if (!sizeStr || selectedGame?.identifier !== game.identifier) return;
     const s = document.getElementById('detail-size');
@@ -867,7 +867,7 @@ async function onDownload() {
   });
 
   library = await window.electronAPI.getLibrary();
-  btnDownload.textContent = 'Download';
+  btnDownload.textContent = 'Install';
   refreshButtonStates();
   renderLibraryGrid();
   // Load readme now that the game is installed

@@ -2,3 +2,4 @@
 .env
 *.log
 dist/
+release-notes.md

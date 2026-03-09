@@ -403,9 +403,35 @@ ipcMain.handle('find-exes', (_, { installDir }) => {
 
 // ─── Launch + playtime ────────────────────────────────────────────────────────
 
-ipcMain.handle('launch-game', (_, { identifier, exePath }) => {
+// Recursively unblock all .exe and .dll files under a directory.
+// Windows marks downloaded files with Zone.Identifier streams which cause EACCES.
+function unblockDirectory(dir) {
   return new Promise((resolve) => {
+    if (process.platform !== 'win32') return resolve();
+    // Use PowerShell to remove the Zone.Identifier alternate data stream from all
+    // exe/dll files recursively — this is equivalent to right-click → Unblock
+    const ps = `Get-ChildItem -Path '${dir}' -Recurse -Include *.exe,*.dll | Unblock-File -ErrorAction SilentlyContinue`;
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], (err) => {
+      // Errors here are non-fatal — we attempt the launch regardless
+      if (err) console.warn('[unblock] PowerShell unblock warning:', err.message);
+      resolve();
+    });
+  });
+}
+
+ipcMain.handle('launch-game', (_, { identifier, exePath }) => {
+  return new Promise(async (resolve) => {
     if (!fs.existsSync(exePath)) return resolve({ ok: false, error: 'Executable not found: ' + exePath });
+
+    // Unblock the entire install directory before launching (removes Windows Mark of the Web).
+    // We walk up two levels from the exe to reach the install root:
+    //   installDir\GameFolder\bin\game.exe  → unblock installDir\GameFolder\
+    //   installDir\GameFolder\game.exe      → unblock installDir\GameFolder\
+    const exeDir     = path.dirname(exePath);
+    const parentDir  = path.dirname(exeDir);
+    // If exe is inside a 'bin' subfolder, unblock from one level above it
+    const unblockRoot = path.basename(exeDir).toLowerCase() === 'bin' ? parentDir : exeDir;
+    await unblockDirectory(unblockRoot);
 
     const start   = Date.now();
     const cwd     = path.dirname(exePath);
