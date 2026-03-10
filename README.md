@@ -47,7 +47,7 @@ A desktop game launcher for the classic PC game collection uploaded to [Archive.
 
 > **Note:** Windows may show a SmartScreen warning on first run. Click **More info → Run anyway**. This is expected for unsigned installers from new publishers.
 
-> **Upgrading from v1.0.5 or earlier?** The auto-updater in older versions does not work correctly. Please download and install **v1.0.6** manually from the link above. From v1.0.6 onwards, updates will be detected and linked to automatically.
+> **Upgrading from v1.0.6 or earlier?** The auto-updater in older versions does not work correctly. Please download and install **v1.0.7** manually from the link above. From v1.0.7 onwards, updates will be detected and linked to automatically.
 
 ---
 

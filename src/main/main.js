@@ -416,7 +416,8 @@ function unblockDirectory(dir) {
     if (process.platform !== 'win32') return resolve();
     // Use PowerShell to remove the Zone.Identifier alternate data stream from all
     // exe/dll files recursively — this is equivalent to right-click → Unblock
-    const ps = `Get-ChildItem -Path '${dir}' -Recurse -Include *.exe,*.dll | Unblock-File -ErrorAction SilentlyContinue`;
+    const safePath = dir.replace(/'/g, "''"); // escape single quotes for PowerShell
+    const ps = `Get-ChildItem -LiteralPath '${safePath}' -Recurse | Unblock-File -ErrorAction SilentlyContinue`;
     execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], (err) => {
       // Errors here are non-fatal — we attempt the launch regardless
       if (err) console.warn('[unblock] PowerShell unblock warning:', err.message);
