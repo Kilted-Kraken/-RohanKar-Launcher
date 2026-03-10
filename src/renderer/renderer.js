@@ -13,12 +13,24 @@ const UPLOADER       = 'rohanjackson071@gmail.com';
 
 let allGames      = [];
 let library       = {};
+let collections   = []; // [{ id, name, games: [identifier, …] }]
 let selectedGame  = null;
 let sortOrder     = 'az'; // default: A→Z
 let fileListCache = {};   // identifier → { files, size }
-let installedFirst = false; // setting: always show installed titles first
+let installedFirst  = false; // setting: always show installed titles first
+let activeFilter    = 'all'; // 'all' | 'favorites'
+let activeCollection = '';   // collection id or '' for all
 
 // ─── DOM refs ────────────────────────────────────────────────
+
+// ─── Controller support detection ──────────────────────────────────────────────────
+// The archive.org description often contains "Controller Support: Yes" metadata.
+const CONTROLLER_RE = /controller\s+support\s*:\s*yes/i;
+function hasControllerSupport(game) {
+  const desc = Array.isArray(game.description) ? game.description.join(' ') : (game.description || '');
+  const subj = Array.isArray(game.subject)      ? game.subject.join(' ')      : (game.subject      || '');
+  return CONTROLLER_RE.test(desc) || CONTROLLER_RE.test(subj);
+}
 
 // Update bar
 const updateBar        = document.getElementById('update-bar');
@@ -262,6 +274,20 @@ function getSortedGames(games) {
     ? games.filter(g => getTitle(g).toLowerCase().includes(query))
     : [...games];
 
+  // Favorites filter
+  if (activeFilter === 'favorites') {
+    filtered = filtered.filter(g => library[g.identifier]?.is_favorite);
+  }
+
+  // Collection filter
+  if (activeCollection) {
+    const col = collections.find(c => String(c.id) === String(activeCollection));
+    if (col) {
+      const set = new Set(col.games);
+      filtered = filtered.filter(g => set.has(g.identifier));
+    }
+  }
+
   switch (sortOrder) {
     case 'az':
       filtered.sort((a, b) => getTitle(a).localeCompare(getTitle(b)));
@@ -349,6 +375,62 @@ async function init() {
   btnOpenLocation.addEventListener('click', onOpenLocation);
   btnClearDefault.addEventListener('click', onClearDefault);
   btnCancelDownload.addEventListener('click', onCancelDownload);
+
+  // Favorites / collections filter pills
+  document.getElementById('btn-filter-all').addEventListener('click', () => {
+    activeFilter = 'all';
+    activeCollection = '';
+    document.getElementById('btn-filter-all').classList.add('active');
+    document.getElementById('btn-filter-favorites').classList.remove('active');
+    document.getElementById('collection-filter').value = '';
+    renderLibraryGrid();
+  });
+  document.getElementById('btn-filter-favorites').addEventListener('click', () => {
+    activeFilter = 'favorites';
+    activeCollection = '';
+    document.getElementById('btn-filter-favorites').classList.add('active');
+    document.getElementById('btn-filter-all').classList.remove('active');
+    document.getElementById('collection-filter').value = '';
+    renderLibraryGrid();
+  });
+  document.getElementById('collection-filter').addEventListener('change', (e) => {
+    activeCollection = e.target.value;
+    if (activeCollection) {
+      // Clear favorites pill when a collection is selected
+      activeFilter = 'all';
+      document.getElementById('btn-filter-all').classList.add('active');
+      document.getElementById('btn-filter-favorites').classList.remove('active');
+    }
+    renderLibraryGrid();
+  });
+
+  // Manage collections modal
+  document.getElementById('btn-manage-collections').addEventListener('click', openCollectionsModal);
+  document.getElementById('btn-close-collections').addEventListener('click', closeCollectionsModal);
+  document.getElementById('btn-close-collections-footer').addEventListener('click', closeCollectionsModal);
+  document.getElementById('collections-modal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('collections-modal')) closeCollectionsModal();
+  });
+  document.getElementById('btn-create-collection').addEventListener('click', onCreateCollection);
+  document.getElementById('new-collection-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') onCreateCollection();
+  });
+
+  // Favorite button in detail panel
+  document.getElementById('btn-favorite').addEventListener('click', onToggleFavorite);
+
+  // Add-to-collection button in detail panel
+  document.getElementById('btn-add-to-collection').addEventListener('click', onAddToCollection);
+
+  // Add-to-collection modal close
+  document.getElementById('btn-close-add-collection').addEventListener('click', closeAddCollectionModal);
+  document.getElementById('btn-close-add-collection-footer').addEventListener('click', closeAddCollectionModal);
+  document.getElementById('add-collection-modal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('add-collection-modal')) closeAddCollectionModal();
+  });
+
+  // Notes
+  document.getElementById('btn-save-notes').addEventListener('click', onSaveNotes);
 
   // Load installedFirst setting on startup
   const initSettings = await window.electronAPI.getSettings();
@@ -457,6 +539,9 @@ async function init() {
     if (e.target === changelogModal) closeChangelog();
   });
 
+  collections = await window.electronAPI.getCollections();
+  renderCollectionFilter();
+
   await fetchGames();
 }
 
@@ -539,6 +624,8 @@ function renderLibraryGrid() {
 
     const libEntry = library[game.identifier];
     const thumb    = getThumb(game);
+    const isFav    = !!libEntry?.is_favorite;
+    const hasCtrl  = hasControllerSupport(game);
 
     const img = document.createElement('img');
     img.className = 'game-thumb';
@@ -550,6 +637,24 @@ function renderLibraryGrid() {
     label.className   = 'card-label';
     label.textContent = getTitle(game);
 
+    // Favorite star
+    if (isFav) {
+      const fav = document.createElement('span');
+      fav.className   = 'card-fav';
+      fav.textContent = '★';
+      card.appendChild(fav);
+    }
+
+    // Controller badge
+    if (hasCtrl) {
+      const ctrlBadge = document.createElement('span');
+      ctrlBadge.className = 'card-badge controller';
+      ctrlBadge.textContent = '🎮';
+      ctrlBadge.title = 'Controller Support';
+      card.appendChild(ctrlBadge);
+    }
+
+    // Installed badge
     if (libEntry?.install_dir) {
       const badge = document.createElement('span');
       badge.className   = 'card-badge installed';
@@ -647,6 +752,17 @@ async function selectGame(game) {
     detailPlaytime.classList.add('hidden');
   }
 
+  // Controller support indicator in detail-extra
+  const ctrlSupport = hasControllerSupport(game);
+  if (ctrlSupport) {
+    detailExtra.innerHTML = '<span class="controller-badge">🎮 Controller Support</span>';
+  } else {
+    detailExtra.textContent = '';
+  }
+
+  // Notes
+  loadNotesForGame(game.identifier);
+
   // readme — clear
   if (readmeContent)  readmeContent.textContent = '';
   if (readmeEmpty)    readmeEmpty.style.display  = 'none';
@@ -724,14 +840,28 @@ async function loadReviews(identifier) {
 // ─── Button states ────────────────────────────────────────────────────────────
 
 async function refreshButtonStates() {
+  const btnFavorite         = document.getElementById('btn-favorite');
+  const btnAddToCollection  = document.getElementById('btn-add-to-collection');
+
   if (!selectedGame) {
     btnDownload.disabled = true;
     btnLaunch.disabled   = true;
     btnDelete.disabled   = true;
     btnOpenLocation.classList.add('hidden');
     btnClearDefault.classList.add('hidden');
+    btnFavorite?.classList.add('hidden');
+    btnAddToCollection?.classList.add('hidden');
     return;
   }
+
+  // Favorite button — always visible when a game is selected
+  if (btnFavorite) {
+    btnFavorite.classList.remove('hidden');
+    updateFavoriteButton();
+  }
+
+  // Add-to-collection button — always visible when a game is selected
+  if (btnAddToCollection) btnAddToCollection.classList.remove('hidden');
   const lib = library[selectedGame.identifier];
   const installed = !!(lib?.install_dir);
   btnDownload.disabled = installed;
@@ -1012,6 +1142,185 @@ async function onDelete() {
   library = await window.electronAPI.getLibrary();
   refreshButtonStates();
   renderLibraryGrid();
+}
+
+// ─── Favorites ───────────────────────────────────────────────────────────────────────
+
+async function onToggleFavorite() {
+  if (!selectedGame) return;
+  const lib    = library[selectedGame.identifier];
+  const newVal = lib?.is_favorite ? 0 : 1;
+  await window.electronAPI.setFavorite({ identifier: selectedGame.identifier, isFavorite: !!newVal });
+  library = await window.electronAPI.getLibrary();
+  updateFavoriteButton();
+  renderLibraryGrid();
+}
+
+function updateFavoriteButton() {
+  const btn = document.getElementById('btn-favorite');
+  if (!btn || !selectedGame) return;
+  const isFav = !!library[selectedGame.identifier]?.is_favorite;
+  btn.textContent = isFav ? '★ Favorited' : '☆ Favorite';
+  if (isFav) btn.classList.add('is-favorite');
+  else       btn.classList.remove('is-favorite');
+}
+
+// ─── Notes ─────────────────────────────────────────────────────────────────────────
+
+async function onSaveNotes() {
+  if (!selectedGame) return;
+  const notesInput = document.getElementById('notes-input');
+  const indicator  = document.getElementById('notes-saved-indicator');
+  await window.electronAPI.setNotes({ identifier: selectedGame.identifier, notes: notesInput.value });
+  library = await window.electronAPI.getLibrary();
+  indicator.textContent = '✓ Saved';
+  indicator.classList.add('show');
+  setTimeout(() => indicator.classList.remove('show'), 2000);
+}
+
+function loadNotesForGame(identifier) {
+  const notesInput = document.getElementById('notes-input');
+  const indicator  = document.getElementById('notes-saved-indicator');
+  if (!notesInput) return;
+  notesInput.value      = library[identifier]?.notes || '';
+  indicator.textContent = '';
+  indicator.classList.remove('show');
+}
+
+// ─── Collections ──────────────────────────────────────────────────────────────────────
+
+function renderCollectionFilter() {
+  const sel = document.getElementById('collection-filter');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">All Collections</option>';
+  collections.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value       = c.id;
+    opt.textContent = c.name + (c.games.length ? ` (${c.games.length})` : '');
+    sel.appendChild(opt);
+  });
+  sel.value = prev;
+}
+
+async function openCollectionsModal() {
+  collections = await window.electronAPI.getCollections();
+  renderCollectionFilter();
+  renderCollectionsList();
+  document.getElementById('collections-modal').classList.remove('hidden');
+}
+
+function closeCollectionsModal() {
+  document.getElementById('collections-modal').classList.add('hidden');
+}
+
+function renderCollectionsList() {
+  const list = document.getElementById('collections-list');
+  list.innerHTML = '';
+  if (!collections.length) {
+    list.innerHTML = '<li style="padding:12px;color:var(--text-dim);font-size:13px;">No collections yet. Create one above.</li>';
+    return;
+  }
+  collections.forEach(c => {
+    const li = document.createElement('li');
+    li.className = 'collection-item';
+
+    const nameSpan  = document.createElement('span');
+    nameSpan.className   = 'collection-name';
+    nameSpan.textContent = c.name;
+
+    const countSpan = document.createElement('span');
+    countSpan.className   = 'collection-count';
+    countSpan.textContent = `${c.games.length} game${c.games.length !== 1 ? 's' : ''}`;
+
+    const renameBtn = document.createElement('button');
+    renameBtn.className   = 'collection-rename-btn';
+    renameBtn.textContent = '✏ Rename';
+    renameBtn.addEventListener('click', async () => {
+      const newName = prompt(`Rename "${c.name}" to:`, c.name);
+      if (!newName || newName.trim() === c.name) return;
+      await window.electronAPI.renameCollection({ id: c.id, name: newName });
+      collections = await window.electronAPI.getCollections();
+      renderCollectionFilter();
+      renderCollectionsList();
+    });
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className   = 'collection-delete-btn';
+    deleteBtn.textContent = '🗑 Delete';
+    deleteBtn.addEventListener('click', async () => {
+      if (!confirm(`Delete collection "${c.name}"? This will not delete the games.`)) return;
+      await window.electronAPI.deleteCollection({ id: c.id });
+      if (String(activeCollection) === String(c.id)) { activeCollection = ''; }
+      collections = await window.electronAPI.getCollections();
+      renderCollectionFilter();
+      renderCollectionsList();
+      renderLibraryGrid();
+    });
+
+    li.appendChild(nameSpan);
+    li.appendChild(countSpan);
+    li.appendChild(renameBtn);
+    li.appendChild(deleteBtn);
+    list.appendChild(li);
+  });
+}
+
+async function onCreateCollection() {
+  const input = document.getElementById('new-collection-input');
+  const name  = input.value.trim();
+  if (!name) return;
+  const result = await window.electronAPI.createCollection({ name });
+  if (!result.ok) { alert('Could not create collection: ' + (result.error || 'name already exists')); return; }
+  input.value = '';
+  collections = await window.electronAPI.getCollections();
+  renderCollectionFilter();
+  renderCollectionsList();
+}
+
+async function onAddToCollection() {
+  if (!selectedGame || !collections.length) {
+    if (!collections.length) alert('Create a collection first using the ⊞ button in the sidebar.');
+    return;
+  }
+  const modal = document.getElementById('add-collection-modal');
+  const list  = document.getElementById('add-collection-list');
+  const label = document.getElementById('add-collection-game-name');
+  label.textContent = getTitle(selectedGame);
+  list.innerHTML = '';
+
+  for (const c of collections) {
+    const isInCol = c.games.includes(selectedGame.identifier);
+    const li = document.createElement('li');
+    li.className = 'add-coll-item';
+
+    const cb = document.createElement('input');
+    cb.type    = 'checkbox';
+    cb.checked = isInCol;
+
+    const span = document.createElement('span');
+    span.textContent = c.name;
+
+    cb.addEventListener('change', async () => {
+      if (cb.checked) {
+        await window.electronAPI.addGameToCollection({ collectionId: c.id, identifier: selectedGame.identifier });
+      } else {
+        await window.electronAPI.removeGameFromCollection({ collectionId: c.id, identifier: selectedGame.identifier });
+      }
+      collections = await window.electronAPI.getCollections();
+      renderCollectionFilter();
+      if (activeCollection) renderLibraryGrid();
+    });
+
+    li.addEventListener('click', (e) => { if (e.target !== cb) cb.click(); });
+    li.appendChild(cb);
+    li.appendChild(span);
+    list.appendChild(li);
+  }
+  modal.classList.remove('hidden');
+}
+
+function closeAddCollectionModal() {
+  document.getElementById('add-collection-modal').classList.add('hidden');
 }
 
 // ─── Start ────────────────────────────────────────────────────────────────────

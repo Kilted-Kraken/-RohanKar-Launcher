@@ -51,6 +51,16 @@
           <option value="date-published">Date Published</option>
           <option value="developer">Developer</option>
         </select>
+        <div id="sidebar-filter-row">
+          <button id="btn-filter-all" class="filter-pill active">All</button>
+          <button id="btn-filter-favorites" class="filter-pill">★ Favorites</button>
+        </div>
+        <div id="sidebar-collections-row">
+          <select id="collection-filter">
+            <option value="">All Collections</option>
+          </select>
+          <button id="btn-manage-collections" title="Manage Collections">⊞</button>
+        </div>
         <div id="sidebar-bottom-buttons">
           <button id="btn-settings" title="Settings">⚙ Settings</button>
           <button id="btn-about" title="About">ℹ About</button>
@@ -89,6 +99,8 @@
               <button id="btn-download" disabled>Install</button>
               <button id="btn-launch"   disabled>Launch</button>
               <button id="btn-delete"   disabled>Delete</button>
+              <button id="btn-favorite" class="hidden" title="Toggle Favorite">☆ Favorite</button>
+              <button id="btn-add-to-collection" class="hidden" title="Add to Collection">+ Collection</button>
               <button id="btn-open-location" class="hidden" title="Open install folder">📁 Open Location</button>
               <button id="btn-clear-default" class="hidden" title="Clear default executable">✕ Clear Default EXE</button>
             </div>
@@ -107,6 +119,7 @@
         <!-- Tabs -->
         <div id="tabs">
           <button class="tab-btn active" data-tab="info">Info</button>
+          <button class="tab-btn"        data-tab="notes">Notes</button>
           <button class="tab-btn"        data-tab="readme">Readme</button>
           <button class="tab-btn"        data-tab="reviews">Reviews</button>
         </div>
@@ -116,6 +129,15 @@
           <p id="detail-desc-archive"></p>
           <hr id="desc-separator" class="hidden" />
           <p id="detail-desc-igdb" class="hidden"></p>
+        </div>
+
+        <!-- Tab: Notes -->
+        <div id="tab-notes" class="tab-panel">
+          <textarea id="notes-input" placeholder="Add your own notes, tips, save codes…"></textarea>
+          <div id="notes-save-row">
+            <span id="notes-saved-indicator"></span>
+            <button id="btn-save-notes">Save Notes</button>
+          </div>
         </div>
 
         <!-- Tab: Readme -->
@@ -228,6 +250,39 @@
       <div id="changelog-footer">
         <button id="btn-changelog-install" class="hidden">⬇ Download Update</button>
         <button id="btn-changelog-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collections modal -->
+  <div id="collections-modal" class="hidden">
+    <div id="collections-inner">
+      <div id="collections-header">
+        <h2>Collections</h2>
+        <button id="btn-close-collections">✕</button>
+      </div>
+      <div id="collections-create-row">
+        <input id="new-collection-input" type="text" placeholder="New collection name…" maxlength="60" />
+        <button id="btn-create-collection">Create</button>
+      </div>
+      <ul id="collections-list"></ul>
+      <div id="collections-footer">
+        <button id="btn-close-collections-footer">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add-to-collection picker -->
+  <div id="add-collection-modal" class="hidden">
+    <div id="add-collection-inner">
+      <div id="add-collection-header">
+        <h3>Add to Collection</h3>
+        <button id="btn-close-add-collection">✕</button>
+      </div>
+      <p id="add-collection-game-name"></p>
+      <ul id="add-collection-list"></ul>
+      <div id="add-collection-footer">
+        <button id="btn-close-add-collection-footer">Done</button>
       </div>
     </div>
   </div>

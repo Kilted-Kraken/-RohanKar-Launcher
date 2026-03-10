@@ -40,6 +40,20 @@ try {
   `);
 
   // Migrate: add any columns missing from older DB versions
+  // Collections table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS collections (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT UNIQUE NOT NULL,
+      created_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS collection_games (
+      collection_id INTEGER NOT NULL,
+      identifier    TEXT NOT NULL,
+      PRIMARY KEY (collection_id, identifier)
+    );
+  `);
+
   const existingCols = db.prepare('PRAGMA table_info(games)').all().map(r => r.name);
   const needed = {
     install_dir:   'TEXT',
@@ -47,6 +61,8 @@ try {
     category:      'TEXT',
     playtime_secs: 'INTEGER DEFAULT 0',
     added_at:      'INTEGER',
+    is_favorite:   'INTEGER DEFAULT 0',
+    notes:         'TEXT',
   };
   for (const [col, type] of Object.entries(needed)) {
     if (!existingCols.includes(col)) {
@@ -180,6 +196,76 @@ ipcMain.handle('library-get-game', (_, { identifier }) => {
 ipcMain.handle('library-set-category', (_, { identifier, category }) => {
   if (!db) return { ok: false };
   db.prepare('UPDATE games SET category = ? WHERE identifier = ?').run(category, identifier);
+  return { ok: true };
+});
+
+ipcMain.handle('library-set-favorite', (_, { identifier, isFavorite }) => {
+  if (!db) return { ok: false };
+  // Ensure the row exists (game may not be installed yet)
+  db.prepare(`INSERT OR IGNORE INTO games (identifier, added_at) VALUES (?, ?)`).run(identifier, Date.now());
+  db.prepare('UPDATE games SET is_favorite = ? WHERE identifier = ?').run(isFavorite ? 1 : 0, identifier);
+  return { ok: true };
+});
+
+ipcMain.handle('library-set-notes', (_, { identifier, notes }) => {
+  if (!db) return { ok: false };
+  db.prepare(`INSERT OR IGNORE INTO games (identifier, added_at) VALUES (?, ?)`).run(identifier, Date.now());
+  db.prepare('UPDATE games SET notes = ? WHERE identifier = ?').run(notes || null, identifier);
+  return { ok: true };
+});
+
+// ─── Collections IPC ──────────────────────────────────────────────────────────
+
+ipcMain.handle('collections-get', () => {
+  if (!db) return [];
+  const cols = db.prepare('SELECT * FROM collections ORDER BY name').all();
+  return cols.map(c => ({
+    ...c,
+    games: db.prepare('SELECT identifier FROM collection_games WHERE collection_id = ?')
+             .all(c.id).map(r => r.identifier),
+  }));
+});
+
+ipcMain.handle('collections-create', (_, { name }) => {
+  if (!db) return { ok: false };
+  try {
+    const info = db.prepare('INSERT INTO collections (name, created_at) VALUES (?, ?)').run(name.trim(), Date.now());
+    return { ok: true, id: info.lastInsertRowid };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('collections-delete', (_, { id }) => {
+  if (!db) return { ok: false };
+  db.prepare('DELETE FROM collection_games WHERE collection_id = ?').run(id);
+  db.prepare('DELETE FROM collections WHERE id = ?').run(id);
+  return { ok: true };
+});
+
+ipcMain.handle('collections-rename', (_, { id, name }) => {
+  if (!db) return { ok: false };
+  try {
+    db.prepare('UPDATE collections SET name = ? WHERE id = ?').run(name.trim(), id);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('collections-add-game', (_, { collectionId, identifier }) => {
+  if (!db) return { ok: false };
+  try {
+    db.prepare('INSERT OR IGNORE INTO collection_games (collection_id, identifier) VALUES (?, ?)').run(collectionId, identifier);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('collections-remove-game', (_, { collectionId, identifier }) => {
+  if (!db) return { ok: false };
+  db.prepare('DELETE FROM collection_games WHERE collection_id = ? AND identifier = ?').run(collectionId, identifier);
   return { ok: true };
 });
 

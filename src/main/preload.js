@@ -16,6 +16,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLibrary:     ()      => ipcRenderer.invoke('library-get'),
   getLibraryGame: (opts)  => ipcRenderer.invoke('library-get-game',    opts),
   setCategory:    (opts)  => ipcRenderer.invoke('library-set-category', opts),
+  setFavorite:    (opts)  => ipcRenderer.invoke('library-set-favorite', opts),
+  setNotes:       (opts)  => ipcRenderer.invoke('library-set-notes',    opts),
+
+  // Collections
+  getCollections:       ()     => ipcRenderer.invoke('collections-get'),
+  createCollection:     (opts) => ipcRenderer.invoke('collections-create',     opts),
+  deleteCollection:     (opts) => ipcRenderer.invoke('collections-delete',     opts),
+  renameCollection:     (opts) => ipcRenderer.invoke('collections-rename',     opts),
+  addGameToCollection:  (opts) => ipcRenderer.invoke('collections-add-game',   opts),
+  removeGameFromCollection: (opts) => ipcRenderer.invoke('collections-remove-game', opts),
 
   // Download
   fetchFileList:  (opts)  => ipcRenderer.invoke('fetch-file-list', opts),
