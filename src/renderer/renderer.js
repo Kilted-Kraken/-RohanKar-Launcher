@@ -270,9 +270,11 @@ function getSortedGames(games) {
       filtered.sort((a, b) => getTitle(b).localeCompare(getTitle(a)));
       break;
     case 'date-archived':
-      filtered.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      // addeddate = when the item was uploaded to archive.org (e.g. "2024-10-25 12:00:00")
+      filtered.sort((a, b) => new Date(b.addeddate || 0) - new Date(a.addeddate || 0));
       break;
     case 'date-published':
+      // date = the game's original release year (e.g. "1996")
       filtered.sort((a, b) => {
         const ya = parseInt(a.date) || 0;
         const yb = parseInt(b.date) || 0;
@@ -494,7 +496,7 @@ async function fetchGames() {
     // Fetch up to 500 at once — archive.org's start-offset pagination is unreliable
     const params = new URLSearchParams({
       q:      `uploader:${UPLOADER} mediatype:software`,
-      fl:     'identifier,title,description,date,downloads,subject',
+      fl:     'identifier,title,description,date,addeddate,downloads,subject',
       rows:   '500',
       start:  '0',
       output: 'json',
