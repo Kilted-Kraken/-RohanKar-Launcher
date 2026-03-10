@@ -315,12 +315,8 @@ ipcMain.handle('extract-archive', async (_, { filePath, identifier }) => {
   const ext    = filePath.toLowerCase();
   const sevenZ = 'C:\\Program Files\\7-Zip\\7z.exe';
 
-  // Helper: unblock all files in destDir after extraction
-  const unblockAfterExtract = () => new Promise((resolve) => {
-    if (process.platform !== 'win32') return resolve();
-    const ps = `Get-ChildItem -Path '${destDir}' -Recurse | Unblock-File -ErrorAction SilentlyContinue`;
-    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], () => resolve());
-  });
+  // Helper: unblock all files in destDir after extraction (reuses unblockDirectory)
+  const unblockAfterExtract = () => unblockDirectory(destDir);
 
   if ((ext.endsWith('.zip') || ext.endsWith('.7z') || ext.endsWith('.rar')) && fs.existsSync(sevenZ)) {
     return new Promise((resolve) => {
@@ -409,21 +405,30 @@ ipcMain.handle('find-exes', (_, { installDir }) => {
 
 // ─── Launch + playtime ────────────────────────────────────────────────────────
 
-// Recursively unblock all .exe and .dll files under a directory.
-// Windows marks downloaded files with Zone.Identifier streams which cause EACCES.
+// Recursively delete Zone.Identifier alternate data streams from all files under a directory.
+// This is what right-click → Unblock does on Windows, but done directly via Node fs.
 function unblockDirectory(dir) {
-  return new Promise((resolve) => {
-    if (process.platform !== 'win32') return resolve();
-    // Use PowerShell to remove the Zone.Identifier alternate data stream from all
-    // exe/dll files recursively — this is equivalent to right-click → Unblock
-    const safePath = dir.replace(/'/g, "''"); // escape single quotes for PowerShell
-    const ps = `Get-ChildItem -LiteralPath '${safePath}' -Recurse | Unblock-File -ErrorAction SilentlyContinue`;
-    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], (err) => {
-      // Errors here are non-fatal — we attempt the launch regardless
-      if (err) console.warn('[unblock] PowerShell unblock warning:', err.message);
-      resolve();
-    });
-  });
+  if (process.platform !== 'win32') return Promise.resolve();
+  let count = 0;
+  function walk(d) {
+    let entries;
+    try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const full = path.join(d, e.name);
+      if (e.isDirectory()) {
+        walk(full);
+      } else if (e.isFile()) {
+        // Delete the Zone.Identifier ADS — this is exactly what Unblock-File does
+        try {
+          fs.rmSync(full + ':Zone.Identifier');
+          count++;
+        } catch { /* stream doesn't exist or already removed — fine */ }
+      }
+    }
+  }
+  walk(dir);
+  console.log(`[unblock] Removed Zone.Identifier from ${count} files in ${dir}`);
+  return Promise.resolve();
 }
 
 ipcMain.handle('launch-game', (_, { identifier, exePath }) => {
