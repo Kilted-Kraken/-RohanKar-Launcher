@@ -17,7 +17,9 @@ const DEFAULT_GAMES_DIR = path.join(USER_DATA, 'games');
 const LEGACY_DB_PATH   = path.join(USER_DATA, 'library.json');
 const SETTINGS_PATH    = path.join(USER_DATA, 'settings.json');
 
-[DEFAULT_GAMES_DIR].forEach(d => {
+const THUMB_CACHE_DIR  = path.join(USER_DATA, 'thumbcache');
+
+[DEFAULT_GAMES_DIR, THUMB_CACHE_DIR].forEach(d => {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 });
 
@@ -267,6 +269,62 @@ ipcMain.handle('collections-remove-game', (_, { collectionId, identifier }) => {
   if (!db) return { ok: false };
   db.prepare('DELETE FROM collection_games WHERE collection_id = ? AND identifier = ?').run(collectionId, identifier);
   return { ok: true };
+});
+
+// ─── Thumbnail cache ──────────────────────────────────────────────────────────
+
+// Returns a file:// URL from disk cache, downloading from archive.org if not
+// yet cached. Falls back to the live URL on any error so UI always shows something.
+ipcMain.handle('get-thumb', async (_, { identifier }) => {
+  const liveUrl   = `https://archive.org/services/img/${identifier}`;
+  const cachePath = path.join(THUMB_CACHE_DIR, `${identifier}.jpg`);
+  const cacheUrl  = 'file:///' + cachePath.replace(/\\/g, '/');
+
+  // Serve from cache if it already exists and looks like a real image (>1 KB)
+  if (fs.existsSync(cachePath) && fs.statSync(cachePath).size > 1024) {
+    return cacheUrl;
+  }
+
+  return new Promise((resolve) => {
+    const doRequest = (url, redirects) => {
+      if (redirects > 5) return resolve(liveUrl);
+      https.get(url, { headers: { 'User-Agent': 'RohanKar-Launcher/1.1' } }, (res) => {
+        const { statusCode, headers: resHeaders } = res;
+
+        if ([301,302,303,307,308].includes(statusCode) && resHeaders.location) {
+          res.resume();
+          let next = resHeaders.location;
+          if (next.startsWith('/')) {
+            const base = new URL(url);
+            next = `${base.protocol}//${base.host}${next}`;
+          }
+          return doRequest(next, redirects + 1);
+        }
+
+        // Only cache real image responses
+        const ct = resHeaders['content-type'] || '';
+        if (statusCode !== 200 || !ct.startsWith('image/')) {
+          res.resume();
+          return resolve(liveUrl);
+        }
+
+        const file = fs.createWriteStream(cachePath);
+        res.pipe(file);
+        file.on('finish', () => {
+          file.close();
+          try {
+            if (fs.statSync(cachePath).size > 1024) return resolve(cacheUrl);
+          } catch {}
+          resolve(liveUrl);
+        });
+        file.on('error', () => {
+          try { fs.unlinkSync(cachePath); } catch {}
+          resolve(liveUrl);
+        });
+      }).on('error', () => resolve(liveUrl));
+    };
+    doRequest(liveUrl, 0);
+  });
 });
 
 // ─── Download ─────────────────────────────────────────────────────────────────

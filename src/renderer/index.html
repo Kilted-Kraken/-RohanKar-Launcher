@@ -6,11 +6,15 @@
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
     script-src 'self';
-    style-src 'self' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src https://fonts.gstatic.com;
     connect-src 'self' https://archive.org;
     img-src 'self' https://archive.org file: data:;
   ">
   <title>RohanKar Launcher</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -45,7 +49,10 @@
       <div id="sidebar-top">
         <div id="sidebar-search-row">
           <button id="btn-home" title="Home">🏠</button>
-          <input id="search-input" type="text" placeholder="Search games…" />
+          <div id="search-wrapper">
+            <input id="search-input" type="text" placeholder="Search games…" />
+            <button id="btn-search-clear" title="Clear search">✕</button>
+          </div>
         </div>
         <select id="sort-filter">
           <option value="az">Title A → Z</option>
@@ -90,6 +97,7 @@
         <!-- Featured banner -->
         <div id="home-banner">
           <div id="home-banner-bg"></div>
+          <div id="home-banner-bg2"></div>
           <img id="home-banner-local" class="hidden" alt="" />
           <div id="home-banner-overlay">
             <div id="home-banner-label">Featured</div>
@@ -247,6 +255,11 @@
         <input id="setting-installed-first" type="checkbox" />
       </div>
 
+      <div class="settings-row settings-check-row">
+        <label for="setting-show-installed-badge">Show "Installed" badge on cards</label>
+        <input id="setting-show-installed-badge" type="checkbox" />
+      </div>
+
       <button id="btn-save-settings">Save</button>
     </div>
   </div>
@@ -341,6 +354,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Download queue toast panel -->
+  <div id="download-queue"></div>
 
   <script src="renderer.js"></script>
 </body>

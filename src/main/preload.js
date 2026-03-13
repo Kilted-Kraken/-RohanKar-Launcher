@@ -52,6 +52,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onUpdaterStatus: (cb) => ipcRenderer.on('updater-status', (_, data) => cb(data)),
   updaterInstall:  ()   => ipcRenderer.invoke('updater-install'),
 
+  // Thumbnail cache
+  getThumb:        (opts) => ipcRenderer.invoke('get-thumb', opts),
+
   // App info
   getAppVersion:   () => ipcRenderer.invoke('app-version'),
   getHeroesPath:   () => ipcRenderer.invoke('heroes-path'),
