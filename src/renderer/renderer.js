@@ -1549,15 +1549,21 @@ function showExePicker(exePaths, installDir, identifier) {
 // ─── Delete ───────────────────────────────────────────────────────────────────
 async function onDelete() {
   if (!selectedGame) return;
-  if (!confirm(`Delete ${getTitle(selectedGame)}? This cannot be undone.`)) return;
   const lib = library[selectedGame.identifier];
-  await window.electronAPI.deleteGame({
+  const installDir = lib?.install_dir || null;
+  if (!confirm(`Delete ${getTitle(selectedGame)}? This will remove all game files from disk. This cannot be undone.`)) return;
+  const result = await window.electronAPI.deleteGame({
     identifier: selectedGame.identifier,
-    installDir: lib?.install_dir,
+    installDir,
   });
+  if (!result.ok) {
+    alert('Delete failed: ' + (result.error || 'Unknown error'));
+    return;
+  }
   library = await window.electronAPI.getLibrary();
   refreshButtonStates();
   renderLibraryGrid();
+  renderHomeStats();
 }
 
 // ─── Favorites ────────────────────────────────────────────────────────────────

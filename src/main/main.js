@@ -867,12 +867,25 @@ ipcMain.handle('set-exe-path', (_, { identifier, exePath }) => {
   return { ok: true };
 });
 
-ipcMain.handle('delete-game', (_, { identifier, installDir }) => {
+ipcMain.handle('delete-game', async (_, { identifier, installDir }) => {
   try {
-    if (installDir && fs.existsSync(installDir)) fs.rmSync(installDir, { recursive: true, force: true });
+    console.log(`[delete] identifier=${identifier} installDir=${installDir}`);
+    if (installDir) {
+      if (fs.existsSync(installDir)) {
+        // Use shell.trashItem to move to Recycle Bin — avoids EPERM on locked folders
+        // and is safer than force-deleting since the user can recover files if needed.
+        await shell.trashItem(installDir);
+        console.log(`[delete] Moved to Recycle Bin: ${installDir}`);
+      } else {
+        console.log(`[delete] Folder not found on disk (already gone?): ${installDir}`);
+      }
+    } else {
+      console.log(`[delete] No installDir provided — only clearing DB entry`);
+    }
     if (db) db.prepare('DELETE FROM games WHERE identifier = ?').run(identifier);
     return { ok: true };
   } catch (e) {
+    console.error(`[delete] Failed:`, e.message);
     return { ok: false, error: e.message };
   }
 });
