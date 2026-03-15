@@ -1,0 +1,234 @@
+{
+  "app": {
+    "name": "RohanKar Launcher",
+    "title": "RohanKar Launcher"
+  },
+  "common": {
+    "search": "Search games…",
+    "clear": "Clear",
+    "close": "Close",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "install": "Install",
+    "launch": "Launch",
+    "download": "Download",
+    "loading": "Loading…",
+    "error": "Error",
+    "success": "Success",
+    "yes": "Yes",
+    "no": "No",
+    "confirm": "Confirm",
+    "all": "All",
+    "favorites": "Favorites",
+    "collections": "Collections",
+    "settings": "Settings",
+    "about": "About",
+    "home": "Home",
+    "back": "Back"
+  },
+  "sidebar": {
+    "home": "Home",
+    "search": "Search games…",
+    "sort": {
+      "az": "Title A → Z",
+      "za": "Title Z → A",
+      "dateArchived": "Date Archived",
+      "datePublished": "Date Published",
+      "developer": "Developer"
+    },
+    "filters": {
+      "all": "All",
+      "favorites": "★ Favorites"
+    },
+    "collections": {
+      "all": "All Collections",
+      "manage": "Manage Collections",
+      "add": "+ Collection"
+    },
+    "buttons": {
+      "downloads": "Downloads",
+      "settings": "Settings",
+      "about": "About"
+    }
+  },
+  "hero": {
+    "selectGame": "Select a game"
+  },
+  "home": {
+    "featured": "Featured",
+    "viewGame": "View Game",
+    "stats": {
+      "gamesAvailable": "Games Available",
+      "installed": "Installed",
+      "favorites": "Favorites",
+      "collections": "Collections"
+    },
+    "sections": {
+      "recentlyAdded": "Recently Added",
+      "recentlyPlayed": "Recently Played",
+      "playSomething": "Play Something"
+    },
+    "reroll": "↺ Reroll"
+  },
+  "gameCard": {
+    "viewGame": "View Game",
+    "year": "Year",
+    "size": "Size"
+  },
+  "detail": {
+    "favorite": "☆ Favorite",
+    "favorited": "★ Favorited",
+    "files": "📁 Files",
+    "clearDefault": "✕ Clear Default EXE",
+    "collections": "+ Collection",
+    "progress": {
+      "cancel": "Cancel"
+    },
+    "tabs": {
+      "info": "Info",
+      "readme": "Readme",
+      "reviews": "Reviews",
+      "notes": "Notes"
+    },
+    "notes": {
+      "placeholder": "Add your own notes, tips, save codes…",
+      "save": "Save Notes",
+      "saved": "Saved!"
+    },
+    "readme": {
+      "notFound": "No readme file found."
+    },
+    "reviews": {
+      "loading": "Loading reviews…",
+      "empty": "No reviews yet."
+    }
+  },
+  "gameInfo": {
+    "controller": "Controller Support",
+    "deckVerified": "Steam Deck Verified",
+    "widescreen": "Widescreen Fix",
+    "fov": "FOV Support",
+    "year": "Year",
+    "size": "Size",
+    "downloads": "Downloads"
+  },
+  "settings": {
+    "title": "Settings",
+    "downloadPath": "Download folder",
+    "installPath": "Install folder",
+    "browse": "Browse…",
+    "deleteAfterInstall": "Delete archive after install",
+    "installedFirst": "Show installed games first",
+    "showInstalledBadge": "Show \"Installed\" badge on cards",
+    "scanGames": {
+      "label": "Detect pre-installed games",
+      "button": "🔍 Scan Install Folder",
+      "result": "",
+      "setFolderFirst": "Set an Install Folder in settings first"
+    },
+    "save": "Save",
+    "language": "Language",
+    "languageEN": "English",
+    "languageRU": "Русский"
+  },
+  "about": {
+    "title": "About",
+    "name": "RohanKar Launcher",
+    "version": "Version",
+    "description": "A desktop launcher for the RohanKar game archive on archive.org.",
+    "links": {
+      "github": "GitHub Repository",
+      "archive": "Archive.org Collection",
+      "twitter": "Support Rohan Kar on X",
+      "archiveDonate": "Donate to the Internet Archive",
+      "kofi": "Support Rohan Kar on Ko-fi",
+      "buymeacoffee": "Support the Launcher Creator — Buy Me a Coffee"
+    }
+  },
+  "changelog": {
+    "title": "What's New",
+    "released": "Released",
+    "noNotes": "No release notes provided.",
+    "install": "⬇ Download Update",
+    "close": "Close"
+  },
+  "collections": {
+    "title": "Manage Collections",
+    "create": "Create New Collection",
+    "placeholder": "Collection name…",
+    "createButton": "+ Create",
+    "noCollections": "No collections yet. Create one to organize your games!",
+    "delete": "🗑 Delete",
+    "rename": "✏ Rename",
+    "renamePrompt": "Rename \"{name}\" to:",
+    "pickColor": "Pick a colour for this collection",
+    "createFirst": "Create a collection first using the ⊞ button in the sidebar.",
+    "gamesCount": "{count} games"
+  },
+  "addToCollection": {
+    "title": "Add to Collection",
+    "add": "Add",
+    "close": "Close"
+  },
+  "downloads": {
+    "title": "Downloads",
+    "clearHistory": "Clear History",
+    "noDownloads": "No active downloads",
+    "noDownloadsSession": "No downloads this session yet.",
+    "status": {
+      "downloading": "Downloading",
+      "extracting": "Extracting",
+      "done": "Completed",
+      "error": "Error"
+    }
+  },
+  "update": {
+    "download": "⬇ Download Update",
+    "dismiss": "✕"
+  },
+  "stats": {
+    "gamesAvailable": "Games Available",
+    "installed": "Installed",
+    "favorites": "Favorites",
+    "collections": "Collections"
+  },
+  "badges": {
+    "installed": "INSTALLED",
+    "controller": "Controller Support",
+    "deckVerified": "Steam Deck Verified",
+    "widescreen": "Widescreen Fix",
+    "fov": "FOV Support"
+  },
+  "messages": {
+    "noGames": "No games found",
+    "searchNoResults": "No games match your search",
+    "loadFailed": "Failed to load games: {message}",
+    "downloadStarted": "Download started: {title}",
+    "downloadCancelled": "Download cancelled",
+    "downloadComplete": "Download complete: {title}",
+    "installComplete": "Installation complete",
+    "gameLaunched": "Launching game…",
+    "gameDeleted": "Game deleted",
+    "notesSaved": "Notes saved",
+    "collectionCreated": "Collection created",
+    "gameAddedToCollection": "Game added to collection",
+    "gameRemovedFromCollection": "Game removed from collection",
+    "collectionDeleted": "Collection deleted",
+    "favoriteAdded": "Added to favorites",
+    "favoriteRemoved": "Removed from favorites"
+  },
+  "confirmations": {
+    "deleteGame": "Are you sure you want to delete this game?",
+    "deleteGameFull": "Delete \"{name}\"? This will remove all game files from disk. This cannot be undone.",
+    "cancelDownload": "Are you sure you want to cancel this download?",
+    "deleteCollection": "Are you sure you want to delete this collection?"
+  },
+  "exePicker": {
+    "title": "Select Executable",
+    "description": "Multiple executables found. Choose one to launch:",
+    "setDefault": "Set as default",
+    "launch": "Launch",
+    "cancel": "Cancel"
+  }
+}

@@ -276,7 +276,7 @@ function openChangelog() {
   changelogBadge.textContent = `v${version}`;
   if (releaseDate) {
     const d = new Date(releaseDate);
-    changelogDate.textContent = `Released ${d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}`;
+    changelogDate.textContent = `Released ${d.toLocaleDateString(window.i18n?.getLocaleCode() || 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
     changelogDate.style.display = 'block';
   } else {
     changelogDate.style.display = 'none';
@@ -296,7 +296,8 @@ async function openAbout() {
   if (!aboutModal) return;
   if (!aboutVersion.textContent) {
     const v = await window.electronAPI.getAppVersion();
-    aboutVersion.textContent = `Version ${v}`;
+    const versionLabel = window.i18n?.t('about.version') || 'Version';
+    aboutVersion.textContent = `${versionLabel} ${v}`;
   }
   aboutModal.classList.remove('hidden');
 }
@@ -364,6 +365,11 @@ function getSortedGames(games) {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
+  // Initialize i18n localization
+  if (window.i18n) {
+    await window.i18n.init();
+  }
+
   // Window controls
   btnMinimize.addEventListener('click', () => window.electronAPI.windowMinimize());
   btnMaximize.addEventListener('click', () => window.electronAPI.windowMaximize());
@@ -456,7 +462,10 @@ async function init() {
   });
   document.getElementById('btn-create-collection').addEventListener('click', onCreateCollection);
   document.getElementById('new-collection-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') onCreateCollection();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onCreateCollection();
+    }
   });
 
   document.getElementById('btn-favorite').addEventListener('click', onToggleFavorite);
@@ -655,6 +664,13 @@ async function openSettings() {
   deleteAfterInstallCheck.checked   = !!s.deleteAfterInstall;
   installedFirstCheck.checked       = !!s.installedFirst;
   showInstalledBadgeCheck.checked   = s.showInstalledBadge !== false;
+  
+  // Set language selector
+  const languageSelect = document.getElementById('setting-language');
+  if (languageSelect && window.i18n) {
+    languageSelect.value = window.i18n.getLocale() || 'en';
+  }
+  
   settingsModal.classList.remove('hidden');
 }
 
@@ -663,16 +679,26 @@ function closeSettings() {
 }
 
 async function saveSettings() {
+  const languageSelect = document.getElementById('setting-language');
+  const newLanguage = languageSelect ? languageSelect.value : 'en';
+  
   await window.electronAPI.saveSettings({
     downloadPath:        downloadPathInput.value.trim(),
     installPath:         installPathInput.value.trim(),
     deleteAfterInstall:  deleteAfterInstallCheck.checked,
     installedFirst:      installedFirstCheck.checked,
     showInstalledBadge:  showInstalledBadgeCheck.checked,
+    language:            newLanguage,
   });
   installedFirst     = installedFirstCheck.checked;
   showInstalledBadge = showInstalledBadgeCheck.checked;
   applyInstalledBadgeSetting();
+  
+  // Apply new language
+  if (window.i18n) {
+    window.i18n.setLocale(newLanguage);
+  }
+  
   renderLibraryGrid();
   closeSettings();
 }
@@ -695,7 +721,7 @@ async function onScanForGames() {
   const s       = await window.electronAPI.getSettings();
   const scanDir = s.installPath || s.downloadPath || null;
   if (!scanDir) {
-    resultEl.textContent = 'Set an Install Folder in settings first.';
+    resultEl.textContent = window.i18n?.t('settings.scanGames.setFolderFirst') || 'Set an Install Folder in settings first.';
     resultEl.className   = 'none';
     return;
   }
@@ -761,7 +787,8 @@ async function fetchGames() {
     renderLibraryGrid();
     showHomeView();
   } catch (e) {
-    libraryGrid.innerHTML = `<p class="loading-msg error">Failed to load games: ${e.message}</p>`;
+    const errorMsg = window.i18n?.t('messages.loadFailed', { message: e.message }) || `Failed to load games: ${e.message}`;
+    libraryGrid.innerHTML = `<p class="loading-msg error">${errorMsg}</p>`;
   }
 }
 
@@ -788,7 +815,8 @@ function renderLibraryGrid() {
   libraryGrid.innerHTML = '';
 
   if (!sorted.length) {
-    libraryGrid.innerHTML = '<p class="loading-msg">No games found.</p>';
+    const noGamesMsg = window.i18n?.t('messages.noGames') || 'No games found.';
+    libraryGrid.innerHTML = `<p class="loading-msg">${noGamesMsg}</p>`;
     return;
   }
 
@@ -836,28 +864,28 @@ function renderLibraryGrid() {
     if (hasWide) {
       const wideBadge = document.createElement('span');
       wideBadge.className = 'card-badge widescreen-fix';
-      wideBadge.title     = 'Widescreen Fix';
+      wideBadge.title     = window.i18n?.t('gameInfo.widescreen') || 'Widescreen Fix';
       wideBadge.innerHTML = SVG_WIDESCREEN;
       badgeStrip.appendChild(wideBadge);
     }
     if (hasFov) {
       const fovBadge = document.createElement('span');
       fovBadge.className = 'card-badge fov';
-      fovBadge.title     = 'FOV Support';
+      fovBadge.title     = window.i18n?.t('gameInfo.fov') || 'FOV Support';
       fovBadge.innerHTML = SVG_FOV;
       badgeStrip.appendChild(fovBadge);
     }
     if (hasDeck) {
       const deckBadge = document.createElement('span');
       deckBadge.className = 'card-badge deck-verified';
-      deckBadge.title     = 'Steam Deck Verified';
+      deckBadge.title     = window.i18n?.t('gameInfo.deckVerified') || 'Steam Deck Verified';
       deckBadge.innerHTML = SVG_DECK;
       badgeStrip.appendChild(deckBadge);
     }
     if (hasCtrl) {
       const ctrlBadge = document.createElement('span');
       ctrlBadge.className = 'card-badge controller';
-      ctrlBadge.title     = 'Controller Support';
+      ctrlBadge.title     = window.i18n?.t('gameInfo.controller') || 'Controller Support';
       ctrlBadge.innerHTML = `<svg viewBox="8 8 48 48" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M29 32.5 Q29 31.05 28 30 27 29 25.5 29 L24.55 29.15 Q23.7 29.35 23.05 30 22 31.05 22 32.5 22 33.95 23.05 35 L24.55 35.9 25.5 36 Q27 36 28 35 29 33.95 29 32.5 M39 32 Q39 30.75 38.15 29.85 37.3 29 36 29 34.75 29 33.9 29.85 33 30.75 33 32 33 33.25 33.9 34.15 34.75 35 36 35 37.3 35 38.15 34.15 39 33.25 39 32 M41 25 Q41 24.15 40.4 23.55 39.85 23 39 23 38.15 23 37.6 23.55 37 24.15 37 25 37 25.8 37.6 26.4 38.15 27 39 27 39.85 27 40.4 26.4 41 25.8 41 25 M34 20 Q34 19.15 33.45 18.55 32.85 18 32 18 31.15 18 30.6 18.55 30 19.15 30 20 30 20.85 30.6 21.45 31.15 22 32 22 32.85 22 33.45 21.45 34 20.85 34 20 M24 23.5 Q24 22.05 23 21 22 20 20.5 20 19.05 20 18.05 21 17 22.05 17 23.5 17 24.95 18.05 26 19.05 27 20.5 27 22 27 23 26 24 24.95 24 23.5 M45 29 Q45 28.15 44.4 27.55 43.85 27 43 27 42.15 27 41.6 27.55 41 28.15 41 29 41 29.8 41.6 30.4 42.15 31 43 31 43.85 31 44.4 30.4 45 29.8 45 29 M49 25 Q49 24.15 48.4 23.55 47.85 23 47 23 46.15 23 45.6 23.55 45 24.15 45 25 45 25.8 45.6 26.4 46.15 27 47 27 47.85 27 48.4 26.4 49 25.8 49 25 M45 21 Q45 20.15 44.4 19.55 43.85 19 43 19 42.15 19 41.6 19.55 41 20.15 41 21 41 21.8 41.6 22.4 42.15 23 43 23 43.85 23 44.4 22.4 45 21.8 45 21 M23.6 38.65 Q22.1 38.65 20.9 39.6 20.15 40.15 19.5 41.1 L17.45 43.75 Q14.65 47.25 12.7 48 9.55 47.55 8.25 43.95 7.95 42.5 8 40.75 8.1 38 9.1 34.5 L9.35 33.55 Q10.2 30.3 11.35 27 L12.1 25 13.35 21.9 14.35 19.6 15.3 18.6 15.45 18.35 15.85 17.65 Q17.55 15.4 21.55 15 L23.5 15 24.25 15.85 39.7 15.85 40.5 15 42.45 15 Q46.45 15.4 48.1 17.65 L48.55 18.35 48.65 18.6 49.65 19.6 50.65 21.9 51.95 25 52.65 27 54.65 33.55 54.9 34.5 Q55.9 38 56 40.75 56.05 42.5 55.75 43.95 54.45 47.55 51.25 48 49.35 47.25 46.5 43.75 L44.5 41.1 43.1 39.6 Q41.9 38.65 40.4 38.65 L23.6 38.65"/></svg>`;
       badgeStrip.appendChild(ctrlBadge);
     }
@@ -913,7 +941,8 @@ function syncToHistory(identifier, entry) {
   else          downloadHistory.unshift(record);
   // If downloads modal is open, update progress bars in-place rather than
   // re-rendering the whole modal (re-rendering destroys cancel button listeners)
-  if (!document.getElementById('downloads-modal').classList.contains('hidden')) {
+  const downloadsModal = document.getElementById('downloads-modal');
+  if (downloadsModal && !downloadsModal.classList.contains('hidden')) {
     updateDownloadsModalProgress(identifier, entry);
   }
 }
@@ -923,7 +952,8 @@ function updateDownloadsModalProgress(identifier, entry) {
   const activeList = document.getElementById('downloads-active-list');
   if (!activeList) return;
   // Find the existing item row for this identifier
-  const item = activeList.querySelector(`[data-identifier="${CSS.escape(identifier)}"]`);
+  const escapeFn = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape : (s) => s;
+  const item = activeList.querySelector(`[data-identifier="${escapeFn(identifier)}"]`);
   if (!item) {
     // Item not rendered yet — do a full re-render (e.g. new download started)
     renderDownloadsModal();
@@ -960,12 +990,16 @@ function updateDownloadsButton() {
 }
 
 function openDownloadsModal() {
-  renderDownloadsModal();
-  document.getElementById('downloads-modal').classList.remove('hidden');
+  const modal = document.getElementById('downloads-modal');
+  if (modal) {
+    renderDownloadsModal();
+    modal.classList.remove('hidden');
+  }
 }
 
 function closeDownloadsModal() {
-  document.getElementById('downloads-modal').classList.add('hidden');
+  const modal = document.getElementById('downloads-modal');
+  if (modal) modal.classList.add('hidden');
 }
 
 function renderDownloadsModal() {
@@ -977,13 +1011,15 @@ function renderDownloadsModal() {
   );
 
   if (active.length === 0) {
-    activeSection.classList.add('hidden');
+    activeSection?.classList.add('hidden');
   } else {
-    activeSection.classList.remove('hidden');
-    activeList.innerHTML = '';
-    active.forEach(entry => {
-      activeList.appendChild(makeDmItem(entry, true));
-    });
+    activeSection?.classList.remove('hidden');
+    if (activeList) {
+      activeList.innerHTML = '';
+      active.forEach(entry => {
+        activeList.appendChild(makeDmItem(entry, true));
+      });
+    }
   }
 
   // ─ History section ─
@@ -993,11 +1029,13 @@ function renderDownloadsModal() {
     e => e.status !== 'downloading' && e.status !== 'extracting'
   );
 
-  countEl.textContent = history.length ? `(${history.length})` : '';
+  if (countEl) countEl.textContent = history.length ? `(${history.length})` : '';
+  if (!historyList) return;
   historyList.innerHTML = '';
 
   if (!history.length) {
-    historyList.innerHTML = '<div class="dm-empty">No downloads this session yet.</div>';
+    const noDownloadsMsg = window.i18n?.t('downloads.noDownloadsSession') || 'No downloads this session yet.';
+    historyList.innerHTML = `<div class="dm-empty">${noDownloadsMsg}</div>`;
     return;
   }
   history.forEach(entry => {
@@ -1148,16 +1186,19 @@ async function selectGame(game) {
 
   const date      = game.date ? new Date(game.date).getFullYear() : '-';
   const downloads = game.downloads ? Number(game.downloads).toLocaleString() : '-';
+  const yearLabel = window.i18n?.t('gameInfo.year') || 'Year';
+  const sizeLabel = window.i18n?.t('gameInfo.size') || 'Size';
+  const dlLabel = window.i18n?.t('gameInfo.downloads') || 'Downloads';
   detailMeta.innerHTML =
-    `<span>Year: <strong>${date}</strong></span>` +
-    `<span>Downloads: <strong>${downloads}</strong></span>` +
+    `<span>${yearLabel}: <strong>${date}</strong></span>` +
+    `<span>${dlLabel}: <strong>${downloads}</strong></span>` +
     `<span id="detail-size"></span>`;
 
-  btnDownload.textContent = 'Install';
+  btnDownload.textContent = window.i18n?.t('common.install') || 'Install';
   const updateSize = (sizeStr) => {
     if (!sizeStr || selectedGame?.identifier !== game.identifier) return;
     const s = document.getElementById('detail-size');
-    if (s) s.innerHTML = `Size: <strong>${sizeStr}</strong>`;
+    if (s) s.innerHTML = `${sizeLabel}: <strong>${sizeStr}</strong>`;
   };
   if (fileListCache[game.identifier]) {
     updateSize(fileListCache[game.identifier].size);
@@ -1195,10 +1236,14 @@ async function selectGame(game) {
   const wideSupport  = hasWidescreenFix(game);
   const fovSupport   = hasFOV(game);
   const detailBadges = [];
-  if (ctrlSupport) detailBadges.push('<span class="controller-badge"><svg viewBox="8 8 48 48" xmlns="http://www.w3.org/2000/svg" fill="currentColor" style="width:14px;height:14px;flex-shrink:0"><path d="M29 32.5 Q29 31.05 28 30 27 29 25.5 29 L24.55 29.15 Q23.7 29.35 23.05 30 22 31.05 22 32.5 22 33.95 23.05 35 L24.55 35.9 25.5 36 Q27 36 28 35 29 33.95 29 32.5 M39 32 Q39 30.75 38.15 29.85 37.3 29 36 29 34.75 29 33.9 29.85 33 30.75 33 32 33 33.25 33.9 34.15 34.75 35 36 35 37.3 35 38.15 34.15 39 33.25 39 32 M41 25 Q41 24.15 40.4 23.55 39.85 23 39 23 38.15 23 37.6 23.55 37 24.15 37 25 37 25.8 37.6 26.4 38.15 27 39 27 39.85 27 40.4 26.4 41 25.8 41 25 M34 20 Q34 19.15 33.45 18.55 32.85 18 32 18 31.15 18 30.6 18.55 30 19.15 30 20 30 20.85 30.6 21.45 31.15 22 32 22 32.85 22 33.45 21.45 34 20.85 34 20 M24 23.5 Q24 22.05 23 21 22 20 20.5 20 19.05 20 18.05 21 17 22.05 17 23.5 17 24.95 18.05 26 19.05 27 20.5 27 22 27 23 26 24 24.95 24 23.5 M45 29 Q45 28.15 44.4 27.55 43.85 27 43 27 42.15 27 41.6 27.55 41 28.15 41 29 41 29.8 41.6 30.4 42.15 31 43 31 43.85 31 44.4 30.4 45 29.8 45 29 M49 25 Q49 24.15 48.4 23.55 47.85 23 47 23 46.15 23 45.6 23.55 45 24.15 45 25 45 25.8 45.6 26.4 46.15 27 47 27 47.85 27 48.4 26.4 49 25.8 49 25 M45 21 Q45 20.15 44.4 19.55 43.85 19 43 19 42.15 19 41.6 19.55 41 20.15 41 21 41 21.8 41.6 22.4 42.15 23 43 23 43.85 23 44.4 22.4 45 21.8 45 21 M23.6 38.65 Q22.1 38.65 20.9 39.6 20.15 40.15 19.5 41.1 L17.45 43.75 Q14.65 47.25 12.7 48 9.55 47.55 8.25 43.95 7.95 42.5 8 40.75 8.1 38 9.1 34.5 L9.35 33.55 Q10.2 30.3 11.35 27 L12.1 25 13.35 21.9 14.35 19.6 15.3 18.6 15.45 18.35 15.85 17.65 Q17.55 15.4 21.55 15 L23.5 15 24.25 15.85 39.7 15.85 40.5 15 42.45 15 Q46.45 15.4 48.1 17.65 L48.55 18.35 48.65 18.6 49.65 19.6 50.65 21.9 51.95 25 52.65 27 54.65 33.55 54.9 34.5 Q55.9 38 56 40.75 56.05 42.5 55.75 43.95 54.45 47.55 51.25 48 49.35 47.25 46.5 43.75 L44.5 41.1 43.1 39.6 Q41.9 38.65 40.4 38.65 L23.6 38.65"/></svg> Controller Support</span>');
-  if (deckSupport)  detailBadges.push('<span class="deck-badge">'       + SVG_DECK.replace('><path',       ' style="width:14px;height:14px;flex-shrink:0"><path') + ' Deck Verified</span>');
-  if (wideSupport)   detailBadges.push('<span class="widescreen-badge">' + SVG_WIDESCREEN.replace('><path', ' style="width:14px;height:14px;flex-shrink:0"><path') + ' Widescreen Fix</span>');
-  if (fovSupport)    detailBadges.push('<span class="fov-badge">'        + SVG_FOV.replace('><path',       ' style="width:14px;height:14px;flex-shrink:0"><path') + ' FOV</span>');
+  const ctrlTitle = window.i18n?.t('gameInfo.controller') || 'Controller Support';
+  const deckTitle = window.i18n?.t('gameInfo.deckVerified') || 'Steam Deck Verified';
+  const wideTitle = window.i18n?.t('gameInfo.widescreen') || 'Widescreen Fix';
+  const fovTitle = window.i18n?.t('gameInfo.fov') || 'FOV';
+  if (ctrlSupport) detailBadges.push('<span class="controller-badge" title="' + ctrlTitle + '"><svg viewBox="8 8 48 48" xmlns="http://www.w3.org/2000/svg" fill="currentColor" style="width:14px;height:14px;flex-shrink:0"><path d="M29 32.5 Q29 31.05 28 30 27 29 25.5 29 L24.55 29.15 Q23.7 29.35 23.05 30 22 31.05 22 32.5 22 33.95 23.05 35 L24.55 35.9 25.5 36 Q27 36 28 35 29 33.95 29 32.5 M39 32 Q39 30.75 38.15 29.85 37.3 29 36 29 34.75 29 33.9 29.85 33 30.75 33 32 33 33.25 33.9 34.15 34.75 35 36 35 37.3 35 38.15 34.15 39 33.25 39 32 M41 25 Q41 24.15 40.4 23.55 39.85 23 39 23 38.15 23 37.6 23.55 37 24.15 37 25 37 25.8 37.6 26.4 38.15 27 39 27 39.85 27 40.4 26.4 41 25.8 41 25 M34 20 Q34 19.15 33.45 18.55 32.85 18 32 18 31.15 18 30.6 18.55 30 19.15 30 20 30 20.85 30.6 21.45 31.15 22 32 22 32.85 22 33.45 21.45 34 20.85 34 20 M24 23.5 Q24 22.05 23 21 22 20 20.5 20 19.05 20 18.05 21 17 22.05 17 23.5 17 24.95 18.05 26 19.05 27 20.5 27 22 27 23 26 24 24.95 24 23.5 M45 29 Q45 28.15 44.4 27.55 43.85 27 43 27 42.15 27 41.6 27.55 41 28.15 41 29 41 29.8 41.6 30.4 42.15 31 43 31 43.85 31 44.4 30.4 45 29.8 45 29 M49 25 Q49 24.15 48.4 23.55 47.85 23 47 23 46.15 23 45.6 23.55 45 24.15 45 25 45 25.8 45.6 26.4 46.15 27 47 27 47.85 27 48.4 26.4 49 25.8 49 25 M45 21 Q45 20.15 44.4 19.55 43.85 19 43 19 42.15 19 41.6 19.55 41 20.15 41 21 41 21.8 41.6 22.4 42.15 23 43 23 43.85 23 44.4 22.4 45 21.8 45 21 M23.6 38.65 Q22.1 38.65 20.9 39.6 20.15 40.15 19.5 41.1 L17.45 43.75 Q14.65 47.25 12.7 48 9.55 47.55 8.25 43.95 7.95 42.5 8 40.75 8.1 38 9.1 34.5 L9.35 33.55 Q10.2 30.3 11.35 27 L12.1 25 13.35 21.9 14.35 19.6 15.3 18.6 15.45 18.35 15.85 17.65 Q17.55 15.4 21.55 15 L23.5 15 24.25 15.85 39.7 15.85 40.5 15 42.45 15 Q46.45 15.4 48.1 17.65 L48.55 18.35 48.65 18.6 49.65 19.6 50.65 21.9 51.95 25 52.65 27 54.65 33.55 54.9 34.5 Q55.9 38 56 40.75 56.05 42.5 55.75 43.95 54.45 47.55 51.25 48 49.35 47.25 46.5 43.75 L44.5 41.1 43.1 39.6 Q41.9 38.65 40.4 38.65 L23.6 38.65"/></svg> ' + ctrlTitle + '</span>');
+  if (deckSupport)  detailBadges.push('<span class="deck-badge" title="' + deckTitle + '">' + SVG_DECK.replace('><path', ' style="width:14px;height:14px;flex-shrink:0"><path') + ' ' + deckTitle + '</span>');
+  if (wideSupport)  detailBadges.push('<span class="widescreen-badge" title="' + wideTitle + '">' + SVG_WIDESCREEN.replace('><path', ' style="width:14px;height:14px;flex-shrink:0"><path') + ' ' + wideTitle + '</span>');
+  if (fovSupport)   detailBadges.push('<span class="fov-badge" title="' + fovTitle + '">' + SVG_FOV.replace('><path', ' style="width:14px;height:14px;flex-shrink:0"><path') + ' ' + fovTitle + '</span>');
   detailExtra.innerHTML = detailBadges.join('') || '';
 
   loadNotesForGame(game.identifier);
@@ -1256,7 +1301,7 @@ async function loadReviews(identifier) {
         <div class="review-header">
           <span class="review-author">${r.reviewer || 'Anonymous'}</span>
           <span class="review-stars">${'★'.repeat(r.stars || 0)}${'☆'.repeat(5 - (r.stars || 0))}</span>
-          <span class="review-date">${r.reviewdate ? new Date(r.reviewdate).toLocaleDateString() : ''}</span>
+          <span class="review-date">${r.reviewdate ? new Date(r.reviewdate).toLocaleDateString(window.i18n?.getLocaleCode() || 'en-US') : ''}</span>
         </div>
         <p class="review-body">${r.reviewbody || ''}</p>
       `;
@@ -1486,7 +1531,9 @@ function showExePicker(exePaths, installDir, identifier) {
     modal.className = 'exe-picker-modal';
     const header = document.createElement('div');
     header.className = 'exe-picker-header';
-    header.innerHTML = `<h3>Select Executable</h3><p>Multiple executables found. Choose one to launch:</p>`;
+    const titleText = window.i18n?.t('exePicker.title') || 'Select Executable';
+    const descText = window.i18n?.t('exePicker.description') || 'Multiple executables found. Choose one to launch:';
+    header.innerHTML = `<h3>${titleText}</h3><p>${descText}</p>`;
     const list = document.createElement('ul');
     list.className = 'exe-picker-list';
     exePaths.forEach(p => {
@@ -1509,12 +1556,13 @@ function showExePicker(exePaths, installDir, identifier) {
     const defaultCheck = document.createElement('input');
     defaultCheck.type = 'checkbox';
     defaultWrap.appendChild(defaultCheck);
-    defaultWrap.appendChild(document.createTextNode(' Set as default'));
+    const defaultLabelText = window.i18n?.t('exePicker.setDefault') || 'Set as default';
+    defaultWrap.appendChild(document.createTextNode(' ' + defaultLabelText));
     const btnRow = document.createElement('div');
     btnRow.className = 'exe-picker-btn-row';
     const launchBtn = document.createElement('button');
     launchBtn.className   = 'exe-picker-launch';
-    launchBtn.textContent = 'Launch';
+    launchBtn.textContent = window.i18n?.t('exePicker.launch') || 'Launch';
     launchBtn.disabled    = true;
     launchBtn.addEventListener('click', async () => {
       if (!selectedExe) return;
@@ -1528,7 +1576,7 @@ function showExePicker(exePaths, installDir, identifier) {
     });
     const cancelBtn = document.createElement('button');
     cancelBtn.className   = 'exe-picker-cancel';
-    cancelBtn.textContent = 'Cancel';
+    cancelBtn.textContent = window.i18n?.t('exePicker.cancel') || 'Cancel';
     cancelBtn.addEventListener('click', () => { cleanup(); resolve(null); });
     btnRow.appendChild(launchBtn);
     btnRow.appendChild(cancelBtn);
@@ -1551,7 +1599,8 @@ async function onDelete() {
   if (!selectedGame) return;
   const lib = library[selectedGame.identifier];
   const installDir = lib?.install_dir || null;
-  if (!confirm(`Delete ${getTitle(selectedGame)}? This will remove all game files from disk. This cannot be undone.`)) return;
+  const confirmMsg = window.i18n?.t('confirmations.deleteGameFull', { name: getTitle(selectedGame) }) || `Delete ${getTitle(selectedGame)}? This will remove all game files from disk. This cannot be undone.`;
+  if (!await showConfirm(confirmMsg)) return;
   const result = await window.electronAPI.deleteGame({
     identifier: selectedGame.identifier,
     installDir,
@@ -1630,12 +1679,31 @@ function loadNotesForGame(identifier) {
 // ─── Collections ──────────────────────────────────────────────────────────────
 function renderCollectionFilter() {
   const sel = document.getElementById('collection-filter');
+  if (!sel) return;
   const prev = sel.value;
-  sel.innerHTML = '<option value="">All Collections</option>';
+  
+  // Get translation with proper fallback
+  let allText = 'All Collections';
+  if (window.i18n && window.i18n.t) {
+    allText = window.i18n.t('sidebar.collections.all');
+    // If translation returns the key itself, use fallback
+    if (!allText || allText === 'sidebar.collections.all') {
+      allText = 'All Collections';
+    }
+  }
+  
+  sel.innerHTML = '<option value="">' + allText + '</option>';
   collections.forEach(c => {
     const opt = document.createElement('option');
     opt.value       = c.id;
-    opt.textContent = c.name + (c.games.length ? ` (${c.games.length})` : '');
+    let countText = `${c.games.length} games`;
+    if (window.i18n && window.i18n.t) {
+      const translated = window.i18n.t('collections.gamesCount', { count: c.games.length });
+      if (translated && translated !== 'collections.gamesCount') {
+        countText = translated;
+      }
+    }
+    opt.textContent = c.name + (c.games.length ? ` (${countText})` : '');
     sel.appendChild(opt);
   });
   sel.value = prev;
@@ -1643,7 +1711,12 @@ function renderCollectionFilter() {
 
 function openCollectionsModal() {
   renderCollectionsList();
-  document.getElementById('collections-modal').classList.remove('hidden');
+  const modal = document.getElementById('collections-modal');
+  modal.classList.remove('hidden');
+  const input = document.getElementById('new-collection-input');
+  if (input) {
+    setTimeout(() => { input.focus(); }, 10);
+  }
 }
 
 function closeCollectionsModal() {
@@ -1654,7 +1727,8 @@ function renderCollectionsList() {
   const list = document.getElementById('collections-list');
   list.innerHTML = '';
   if (!collections.length) {
-    list.innerHTML = '<li style="padding:12px;color:var(--text-dim);font-size:13px;">No collections yet. Create one above.</li>';
+    const noCollectionsText = window.i18n?.t('collections.noCollections') || 'No collections yet. Create one above.';
+    list.innerHTML = '<li style="padding:12px;color:var(--text-dim);font-size:13px;">' + noCollectionsText + '</li>';
     return;
   }
   collections.forEach(c => {
@@ -1665,13 +1739,13 @@ function renderCollectionsList() {
     nameSpan.textContent = c.name;
     const countSpan = document.createElement('span');
     countSpan.className   = 'collection-count';
-    countSpan.textContent = `${c.games.length} game${c.games.length !== 1 ? 's' : ''}`;
+    countSpan.textContent = window.i18n?.t('collections.gamesCount', { count: c.games.length }) || `${c.games.length} games`;
     // Color swatch — native color picker
     const colorInput = document.createElement('input');
     colorInput.type  = 'color';
     colorInput.className = 'collection-color-input';
     colorInput.value = c.color || '#888899';
-    colorInput.title = 'Pick a colour for this collection';
+    colorInput.title = window.i18n?.t('collections.pickColor') || 'Pick a colour for this collection';
     // Only mark as explicitly coloured once the user has interacted
     if (!c.color) colorInput.dataset.unset = 'true';
     colorInput.addEventListener('change', async () => {
@@ -1684,9 +1758,10 @@ function renderCollectionsList() {
 
     const renameBtn = document.createElement('button');
     renameBtn.className   = 'collection-rename-btn';
-    renameBtn.textContent = '✏ Rename';
+    renameBtn.textContent = (window.i18n?.t('collections.rename') || '✏ Rename');
     renameBtn.addEventListener('click', async () => {
-      const newName = prompt(`Rename "${c.name}" to:`, c.name);
+      const renamePrompt = window.i18n?.t('collections.renamePrompt', { name: c.name }) || `Rename "${c.name}" to:`;
+      const newName = await showRenamePrompt(renamePrompt, c.name);
       if (!newName || newName.trim() === c.name) return;
       await window.electronAPI.renameCollection({ id: c.id, name: newName });
       collections = await window.electronAPI.getCollections();
@@ -1695,9 +1770,10 @@ function renderCollectionsList() {
     });
     const deleteBtn = document.createElement('button');
     deleteBtn.className   = 'collection-delete-btn';
-    deleteBtn.textContent = '🗑 Delete';
+    deleteBtn.textContent = (window.i18n?.t('collections.delete') || '🗑 Delete');
     deleteBtn.addEventListener('click', async () => {
-      if (!confirm(`Delete collection "${c.name}"? This will not delete the games.`)) return;
+      const deleteConfirm = window.i18n?.t('confirmations.deleteCollection', { name: c.name }) || `Delete collection "${c.name}"? This will not delete the games.`;
+      if (!await showConfirm(deleteConfirm)) return;
       await window.electronAPI.deleteCollection({ id: c.id });
       if (String(activeCollection) === String(c.id)) { activeCollection = ''; }
       collections = await window.electronAPI.getCollections();
@@ -1716,6 +1792,7 @@ function renderCollectionsList() {
 
 async function onCreateCollection() {
   const input = document.getElementById('new-collection-input');
+  if (!input) return;
   const name  = input.value.trim();
   if (!name) return;
   const result = await window.electronAPI.createCollection({ name });
@@ -1726,9 +1803,144 @@ async function onCreateCollection() {
   renderCollectionsList();
 }
 
+// Custom rename prompt modal (prompt() is not supported in Electron)
+function showRenamePrompt(message, defaultValue) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'custom-modal-overlay';
+    const modal = document.createElement('div');
+    modal.className = 'custom-modal-inner';
+    modal.style.maxWidth = '400px';
+    
+    const header = document.createElement('div');
+    header.className = 'exe-picker-header';
+    header.innerHTML = `<h3>${window.i18n?.t('collections.rename') || 'Rename'}</h3>`;
+    
+    const inputWrap = document.createElement('div');
+    inputWrap.style.padding = '0 20px 20px';
+    const label = document.createElement('p');
+    label.style.marginBottom = '8px';
+    label.style.fontSize = '13px';
+    label.style.color = 'var(--text-dim)';
+    label.textContent = message;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = defaultValue;
+    input.style.width = '100%';
+    input.style.padding = '8px 10px';
+    input.style.fontSize = '14px';
+    input.style.background = 'var(--bg2)';
+    input.style.border = '1px solid var(--border)';
+    input.style.borderRadius = 'var(--radius)';
+    input.style.color = 'var(--text)';
+    inputWrap.appendChild(label);
+    inputWrap.appendChild(input);
+    
+    const footer = document.createElement('div');
+    footer.className = 'exe-picker-footer';
+    const btnRow = document.createElement('div');
+    btnRow.className = 'exe-picker-btn-row';
+    btnRow.style.justifyContent = 'flex-end';
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'exe-picker-cancel';
+    cancelBtn.textContent = window.i18n?.t('common.cancel') || 'Cancel';
+    cancelBtn.addEventListener('click', () => { cleanup(); resolve(null); });
+    
+    const okBtn = document.createElement('button');
+    okBtn.className = 'exe-picker-launch';
+    okBtn.textContent = window.i18n?.t('common.save') || 'Save';
+    okBtn.disabled = false;
+    okBtn.addEventListener('click', () => { cleanup(); resolve(input.value.trim()); });
+    
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(okBtn);
+    footer.appendChild(btnRow);
+    
+    modal.appendChild(header);
+    modal.appendChild(inputWrap);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) { cleanup(); resolve(null); }
+    });
+    
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { cleanup(); resolve(input.value.trim()); }
+      if (e.key === 'Escape') { cleanup(); resolve(null); }
+    });
+    
+    function cleanup() { document.body.removeChild(overlay); }
+    
+    setTimeout(() => { input.focus(); input.select(); }, 10);
+  });
+}
+
+// Custom confirm modal (confirm() is not supported in Electron)
+function showConfirm(message) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'custom-modal-overlay';
+    const modal = document.createElement('div');
+    modal.className = 'custom-modal-inner';
+    modal.style.maxWidth = '400px';
+    
+    const header = document.createElement('div');
+    header.className = 'exe-picker-header';
+    header.innerHTML = `<h3>${window.i18n?.t('common.confirm') || 'Confirm'}</h3>`;
+    
+    const msgWrap = document.createElement('div');
+    msgWrap.style.padding = '0 20px 20px';
+    const msg = document.createElement('p');
+    msg.style.margin = '0';
+    msg.style.fontSize = '14px';
+    msg.style.color = 'var(--text)';
+    msg.style.whiteSpace = 'pre-wrap';
+    msg.style.lineHeight = '1.5';
+    msg.textContent = message;
+    msgWrap.appendChild(msg);
+    
+    const footer = document.createElement('div');
+    footer.className = 'exe-picker-footer';
+    const btnRow = document.createElement('div');
+    btnRow.className = 'exe-picker-btn-row';
+    btnRow.style.justifyContent = 'flex-end';
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'exe-picker-cancel';
+    cancelBtn.textContent = window.i18n?.t('common.no') || 'No';
+    cancelBtn.addEventListener('click', () => { cleanup(); resolve(false); });
+    
+    const okBtn = document.createElement('button');
+    okBtn.className = 'exe-picker-launch';
+    okBtn.style.background = 'var(--danger)';
+    okBtn.style.color = '#fff';
+    okBtn.textContent = window.i18n?.t('common.yes') || 'Yes';
+    okBtn.addEventListener('click', () => { cleanup(); resolve(true); });
+    
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(okBtn);
+    footer.appendChild(btnRow);
+    
+    modal.appendChild(header);
+    modal.appendChild(msgWrap);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) { cleanup(); resolve(false); }
+    });
+    
+    function cleanup() { document.body.removeChild(overlay); }
+  });
+}
+
 async function onAddToCollection() {
   if (!selectedGame || !collections.length) {
-    if (!collections.length) alert('Create a collection first using the ⊞ button in the sidebar.');
+    if (!collections.length) alert(window.i18n?.t('collections.createFirst') || 'Create a collection first using the ⊞ button in the sidebar.');
     return;
   }
   const modal = document.getElementById('add-collection-modal');
@@ -1785,6 +1997,7 @@ function showHomeView() {
 
 function showDetailView(game) {
   currentView = 'detail';
+  window.selectedGame = game;
   document.getElementById('home-view').classList.add('hidden');
   document.getElementById('detail-panel').classList.remove('hidden');
   document.getElementById('hero').style.display = '';
@@ -1960,7 +2173,7 @@ function makeHomeGameCard(game, mode) {
     const dateEl = document.createElement('span');
     dateEl.className   = 'home-game-date';
     const d = new Date(game.addeddate);
-    dateEl.textContent = d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+    dateEl.textContent = d.toLocaleDateString(window.i18n?.getLocaleCode() || 'en-US', { month: 'short', year: 'numeric' });
     card.appendChild(dateEl);
   } else if (mode === 'playtime') {
     const lib = library[game.identifier];
@@ -2032,14 +2245,14 @@ function renderHomeRandomPick(forceNew) {
   const actionBtn = document.createElement('button');
   actionBtn.className   = 'random-pick-launch';
   if (installed) {
-    actionBtn.textContent = '▶ Launch';
+    actionBtn.textContent = '▶ ' + (window.i18n?.t('common.launch') || 'Launch');
     actionBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       showDetailView(game);
       setTimeout(() => onLaunch(), 100);
     });
   } else {
-    actionBtn.textContent = 'View Game';
+    actionBtn.textContent = window.i18n?.t('gameCard.viewGame') || 'View Game';
     actionBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       showDetailView(game);
@@ -2055,3 +2268,21 @@ function renderHomeRandomPick(forceNew) {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', init);
+
+// ─── Exports for i18n ─────────────────────────────────────────────────────────
+// Make functions available globally for language switch refresh
+window.renderLibraryGrid = renderLibraryGrid;
+window.showDetailView = showDetailView;
+window.selectedGame = null; // will be set by showDetailView
+window.renderHomeStats = () => {
+  // Update stats on home page
+  const totalEl = document.getElementById('stat-total');
+  const favEl = document.getElementById('stat-favorites');
+  const collEl = document.getElementById('stat-collections');
+  if (totalEl) totalEl.textContent = allGames.length || '—';
+  if (favEl) {
+    const favCount = Object.values(library).filter(g => g.is_favorite).length;
+    favEl.textContent = favCount || '—';
+  }
+  if (collEl && collections) collEl.textContent = collections.length || '—';
+};

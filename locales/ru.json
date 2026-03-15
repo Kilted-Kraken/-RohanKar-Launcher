@@ -1,0 +1,234 @@
+{
+  "app": {
+    "name": "RohanKar Launcher",
+    "title": "RohanKar Launcher"
+  },
+  "common": {
+    "search": "Поиск игр…",
+    "clear": "Очистить",
+    "close": "Закрыть",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "delete": "Удалить",
+    "install": "Установить",
+    "launch": "Запустить",
+    "download": "Скачать",
+    "loading": "Загрузка…",
+    "error": "Ошибка",
+    "success": "Готово",
+    "yes": "Да",
+    "no": "Нет",
+    "confirm": "Подтверждение",
+    "all": "Все",
+    "favorites": "Избранное",
+    "collections": "Коллекции",
+    "settings": "Настройки",
+    "about": "О программе",
+    "home": "Главная",
+    "back": "Назад"
+  },
+  "sidebar": {
+    "home": "Главная",
+    "search": "Поиск игр…",
+    "sort": {
+      "az": "Название А → Я",
+      "za": "Название Я → А",
+      "dateArchived": "Дата добавления",
+      "datePublished": "Дата выпуска",
+      "developer": "Разработчик"
+    },
+    "filters": {
+      "all": "Все",
+      "favorites": "★ Избранное"
+    },
+    "collections": {
+      "all": "Все коллекции",
+      "manage": "Управление коллекциями",
+      "add": "+ Коллекция"
+    },
+    "buttons": {
+      "downloads": "Загрузки",
+      "settings": "Настройки",
+      "about": "О программе"
+    }
+  },
+  "hero": {
+    "selectGame": "Выберите игру"
+  },
+  "home": {
+    "featured": "Рекомендуем",
+    "viewGame": "Просмотреть",
+    "stats": {
+      "gamesAvailable": "Доступно игр",
+      "installed": "Установлено",
+      "favorites": "В избранном",
+      "collections": "Коллекций"
+    },
+    "sections": {
+      "recentlyAdded": "Недавно добавленные",
+      "recentlyPlayed": "Недавно пройденные",
+      "playSomething": "Сыграть во что-нибудь"
+    },
+    "reroll": "↺ Другая"
+  },
+  "gameCard": {
+    "viewGame": "Просмотреть",
+    "year": "Год",
+    "size": "Размер"
+  },
+  "detail": {
+    "favorite": "☆ В избранное",
+    "favorited": "★ В избранном",
+    "files": "📁 Файлы",
+    "clearDefault": "✕ Сбросить EXE",
+    "collections": "+ Коллекция",
+    "progress": {
+      "cancel": "Отмена"
+    },
+    "tabs": {
+      "info": "Описание",
+      "readme": "Readme",
+      "reviews": "Отзывы",
+      "notes": "Заметки"
+    },
+    "notes": {
+      "placeholder": "Добавьте свои заметки, советы, коды сохранений…",
+      "save": "Сохранить заметки",
+      "saved": "Сохранено!"
+    },
+    "readme": {
+      "notFound": "Файл readme не найден."
+    },
+    "reviews": {
+      "loading": "Загрузка отзывов…",
+      "empty": "Отзывов пока нет."
+    }
+  },
+  "gameInfo": {
+    "controller": "Поддержка контроллера",
+    "deckVerified": "Подтверждено для Steam Deck",
+    "widescreen": "Широкоэкранный режим",
+    "fov": "Поддержка FOV",
+    "year": "Год",
+    "size": "Размер",
+    "downloads": "Загрузки"
+  },
+  "settings": {
+    "title": "Настройки",
+    "downloadPath": "Папка загрузок",
+    "installPath": "Папка установки",
+    "browse": "Обзор…",
+    "deleteAfterInstall": "Удалить архив после установки",
+    "installedFirst": "Показывать установленные игры первыми",
+    "showInstalledBadge": "Показывать метку «Установлено» на карточках",
+    "scanGames": {
+      "label": "Поиск предустановленных игр",
+      "button": "🔍 Сканировать папку установки",
+      "result": "",
+      "setFolderFirst": "Сначала укажите папку установки в настройках"
+    },
+    "save": "Сохранить",
+    "language": "Язык",
+    "languageEN": "English",
+    "languageRU": "Русский"
+  },
+  "about": {
+    "title": "О программе",
+    "name": "RohanKar Launcher",
+    "version": "Версия",
+    "description": "Лаунчер для архива игр RohanKar на archive.org.",
+    "links": {
+      "github": "Репозиторий на GitHub",
+      "archive": "Коллекция на Archive.org",
+      "twitter": "Поддержать Rohan Kar на X",
+      "archiveDonate": "Пожертвовать Internet Archive",
+      "kofi": "Поддержать Rohan Kar на Ko-fi",
+      "buymeacoffee": "Поддержать создателя лаунчера — Buy Me a Coffee"
+    }
+  },
+  "changelog": {
+    "title": "Что нового",
+    "released": "Выпущено",
+    "noNotes": "Примечания к выпуску не предоставлены.",
+    "install": "⬇ Скачать обновление",
+    "close": "Закрыть"
+  },
+  "collections": {
+    "title": "Управление коллекциями",
+    "create": "Создать новую коллекцию",
+    "placeholder": "Название коллекции…",
+    "createButton": "+ Создать",
+    "noCollections": "Коллекций пока нет. Создайте коллекцию для организации игр!",
+    "delete": "🗑 Удалить",
+    "rename": "✏ Переим.",
+    "renamePrompt": "Переименовать \"{name}\" в:",
+    "pickColor": "Выбрать цвет для коллекции",
+    "createFirst": "Сначала создайте коллекцию, нажав кнопку ⊞ в боковой панели.",
+    "gamesCount": "{count} игр"
+  },
+  "addToCollection": {
+    "title": "Добавить в коллекцию",
+    "add": "Добавить",
+    "close": "Закрыть"
+  },
+  "downloads": {
+    "title": "Загрузки",
+    "clearHistory": "Очистить историю",
+    "noDownloads": "Нет активных загрузок",
+    "noDownloadsSession": "Загрузок в этой сессии еще не было.",
+    "status": {
+      "downloading": "Скачивание",
+      "extracting": "Распаковка",
+      "done": "Завершено",
+      "error": "Ошибка"
+    }
+  },
+  "update": {
+    "download": "⬇ Скачать обновление",
+    "dismiss": "✕"
+  },
+  "stats": {
+    "gamesAvailable": "Доступно игр",
+    "installed": "Установлено",
+    "favorites": "В избранном",
+    "collections": "Коллекций"
+  },
+  "badges": {
+    "installed": "УСТАНОВЛЕНО",
+    "controller": "Поддержка контроллера",
+    "deckVerified": "Steam Deck Verified",
+    "widescreen": "Widescreen Fix",
+    "fov": "Поддержка FOV"
+  },
+  "messages": {
+    "noGames": "Игры не найдены",
+    "searchNoResults": "По вашему запросу ничего не найдено",
+    "loadFailed": "Не удалось загрузить игры: {message}",
+    "downloadStarted": "Загрузка начата: {title}",
+    "downloadCancelled": "Загрузка отменена",
+    "downloadComplete": "Загрузка завершена: {title}",
+    "installComplete": "Установка завершена",
+    "gameLaunched": "Запуск игры…",
+    "gameDeleted": "Игра удалена",
+    "notesSaved": "Заметки сохранены",
+    "collectionCreated": "Коллекция создана",
+    "gameAddedToCollection": "Игра добавлена в коллекцию",
+    "gameRemovedFromCollection": "Игра удалена из коллекции",
+    "collectionDeleted": "Коллекция удалена",
+    "favoriteAdded": "Добавлено в избранное",
+    "favoriteRemoved": "Удалено из избранного"
+  },
+  "confirmations": {
+    "deleteGame": "Вы уверены, что хотите удалить эту игру?",
+    "deleteGameFull": "Удалить \"{name}\"? Это удалит все файлы игры с диска. Это действие нельзя отменить.",
+    "cancelDownload": "Вы уверены, что хотите отменить эту загрузку?",
+    "deleteCollection": "Вы уверены, что хотите удалить эту коллекцию?"
+  },
+  "exePicker": {
+    "title": "Выбор исполняемого файла",
+    "description": "Найдено несколько исполняемых файлов. Выберите один для запуска:",
+    "setDefault": "Использовать по умолчанию",
+    "launch": "Запустить",
+    "cancel": "Отмена"
+  }
+}

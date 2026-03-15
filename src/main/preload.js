@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSettings:   (s)     => ipcRenderer.invoke('settings-save', s),
   chooseFolder:   ()      => ipcRenderer.invoke('choose-folder'),
 
+  // i18n
+  getTranslation: (locale) => ipcRenderer.invoke('get-translation', locale),
+
   // Library
   getLibrary:     ()      => ipcRenderer.invoke('library-get'),
   getLibraryGame: (opts)  => ipcRenderer.invoke('library-get-game',    opts),

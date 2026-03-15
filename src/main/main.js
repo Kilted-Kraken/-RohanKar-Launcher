@@ -16,6 +16,7 @@ const USER_DATA        = app.getPath('userData');
 const DEFAULT_GAMES_DIR = path.join(USER_DATA, 'games');
 const LEGACY_DB_PATH   = path.join(USER_DATA, 'library.json');
 const SETTINGS_PATH    = path.join(USER_DATA, 'settings.json');
+const LOCALES_DIR      = path.join(__dirname, '../../locales');
 
 const THUMB_CACHE_DIR  = path.join(USER_DATA, 'thumbcache');
 
@@ -187,6 +188,20 @@ ipcMain.handle('settings-save', (_, s)  => { saveSettings(s); return { ok: true 
 ipcMain.handle('choose-folder', async () => {
   const res = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
   return res.canceled ? null : res.filePaths[0];
+});
+
+// ─── i18n IPC ─────────────────────────────────────────────────────────────────
+
+ipcMain.handle('get-translation', (_, locale) => {
+  const filePath = path.join(LOCALES_DIR, `${locale}.json`);
+  try {
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+  } catch (e) {
+    console.error(`Failed to load translation ${locale}:`, e);
+  }
+  return {};
 });
 
 // ─── Library IPC ──────────────────────────────────────────────────────────────
@@ -900,7 +915,6 @@ ipcMain.handle('delete-game', async (_, { identifier, installDir }) => {
 
 function setupAutoUpdater() {
   if (!app.isPackaged) {
-    console.log('[updater] Dev mode — skipping update check');
     return;
   }
 
