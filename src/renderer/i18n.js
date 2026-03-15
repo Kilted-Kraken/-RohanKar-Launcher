@@ -10,22 +10,16 @@ class I18n {
   }
 
   async init() {
-    console.log('[i18n] Initializing...');
-    
     // Load translations via IPC (for Electron)
     try {
       this.translations.en = await window.electronAPI.getTranslation('en');
-      console.log('[i18n] English translations loaded:', Object.keys(this.translations.en).length, 'keys');
     } catch (e) {
-      console.error('[i18n] Failed to load en.json:', e);
       this.translations.en = {};
     }
 
     try {
       this.translations.ru = await window.electronAPI.getTranslation('ru');
-      console.log('[i18n] Russian translations loaded:', Object.keys(this.translations.ru).length, 'keys');
     } catch (e) {
-      console.error('[i18n] Failed to load ru.json:', e);
       this.translations.ru = {};
     }
 
@@ -38,32 +32,27 @@ class I18n {
       } else {
         this.currentLocale = this.fallbackLocale;
       }
-      console.log('[i18n] Current locale:', this.currentLocale);
     } catch (e) {
       this.currentLocale = 'en';
-      console.log('[i18n] Using default locale: en');
     }
 
     this.applyTranslations();
-    console.log('[i18n] Initialization complete');
   }
 
   setLocale(locale) {
-    console.log('[i18n] Setting locale:', locale);
     if (this.translations[locale]) {
       this.currentLocale = locale;
       this.applyTranslations();
-      
+
       // Refresh dynamic elements
       if (window.renderLibraryGrid) window.renderLibraryGrid();
       if (window.renderHomeStats) window.renderHomeStats();
       if (window.selectedGame && window.showDetailView) {
         window.showDetailView(window.selectedGame);
       }
-      
+
       return true;
     }
-    console.error('[i18n] Locale not found:', locale);
     return false;
   }
 
@@ -136,16 +125,13 @@ class I18n {
   }
 
   applyTranslations() {
-    console.log('[i18n] Applying translations for locale:', this.currentLocale);
-    
     // Update all elements with data-i18n attribute
     const elements = document.querySelectorAll('[data-i18n]');
-    console.log('[i18n] Found', elements.length, 'elements with data-i18n');
-    
+
     elements.forEach(el => {
       const key = el.getAttribute('data-i18n');
       const translation = this.t(key);
-      
+
       // Check if element is input or textarea
       if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
         if (el.getAttribute('data-i18n-attr') === 'placeholder') {
