@@ -2101,6 +2101,89 @@ input:focus, select:focus { border-color: var(--accent); }
 }
 #btn-clear-default:hover { background: var(--bg2); color: var(--danger); border-color: var(--danger); }
 
+/* Exe picker — collection group headers */
+.exe-picker-group-header {
+  padding: 6px 12px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  cursor: default;
+  user-select: none;
+  margin-top: 4px;
+}
+.exe-picker-group-header:first-child { margin-top: 0; }
+.exe-picker-game-item {
+  padding-left: 20px !important;
+  font-size: 12px !important;
+  color: var(--text-dim) !important;
+}
+.exe-picker-game-item:hover,
+.exe-picker-game-item.selected {
+  background: var(--bg3) !important;
+  color: var(--text) !important;
+}
+.exe-picker-game-item.selected { color: var(--accent) !important; }
+
+/* Archive picker modal (multi-game collections) */
+.archive-picker-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.archive-picker-item {
+  border-bottom: 1px solid var(--border);
+}
+.archive-picker-item:last-child { border-bottom: none; }
+.archive-picker-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.archive-picker-label:hover { background: var(--bg3); }
+.archive-picker-label input[type=checkbox] {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.archive-picker-name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text);
+}
+.archive-picker-size {
+  font-size: 11px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.archive-picker-selrow {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+.archive-picker-selall {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.archive-picker-selall:hover { background: var(--bg2); color: var(--text); }
+
 /* About modal link icons */
 .about-link-icon {
   width: 14px;

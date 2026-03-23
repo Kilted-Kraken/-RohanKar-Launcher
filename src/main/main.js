@@ -509,16 +509,25 @@ ipcMain.handle('download-cancel', (_, { identifier }) => {
 
 // ─── Extract ──────────────────────────────────────────────────────────────────
 
-ipcMain.handle('extract-archive', async (_, { filePath, identifier }) => {
-  const settings   = loadSettings();
-  const installDir = settings.installPath || DEFAULT_GAMES_DIR;
-  const destDir    = path.join(installDir, sanitizeFolderName(identifier));
+ipcMain.handle('extract-archive', async (_, { filePath, identifier, subFolder }) => {
+  const settings       = loadSettings();
+  const installBase    = settings.installPath || DEFAULT_GAMES_DIR;
+  // parentDir = the identifier's root folder (e.g. ni-ghts-into-dreams_202511)
+  const parentDir      = path.join(installBase, sanitizeFolderName(identifier));
+  // destDir   = where this specific archive extracts to
+  //   - Single game:       parentDir  (e.g. .../ni-ghts-into-dreams_202511/)
+  //   - Collection item:   parentDir/subFolder  (e.g. .../ni-ghts-into-dreams_202511/Crazy Taxi/)
+  // Collection game subfolders are prefixed with _GAME_ so findExesInDir
+  // can identify them and list their executables grouped by game name.
+  const destDir = subFolder
+    ? path.join(parentDir, '_GAME_' + sanitizeFolderName(subFolder))
+    : parentDir;
+
   if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
 
   const ext    = filePath.toLowerCase();
   const sevenZ = 'C:\\Program Files\\7-Zip\\7z.exe';
 
-  // Helper: unblock all files in destDir after extraction (reuses unblockDirectory)
   const unblockAfterExtract = () => unblockDirectory(destDir);
 
   if ((ext.endsWith('.zip') || ext.endsWith('.7z') || ext.endsWith('.rar')) && fs.existsSync(sevenZ)) {
@@ -531,7 +540,7 @@ ipcMain.handle('extract-archive', async (_, { filePath, identifier }) => {
             try { fs.rmdirSync(path.dirname(filePath)); } catch {}
           });
         }
-        resolve({ ok: true, installDir: destDir });
+        resolve({ ok: true, installDir: destDir, parentInstallDir: parentDir });
       });
     });
   }
@@ -547,7 +556,7 @@ ipcMain.handle('extract-archive', async (_, { filePath, identifier }) => {
           try { fs.rmdirSync(path.dirname(filePath)); } catch {}
         });
       }
-      return { ok: true, installDir: destDir };
+      return { ok: true, installDir: destDir, parentInstallDir: parentDir };
     } catch (e) {
       return { ok: false, error: e.message };
     }
@@ -699,6 +708,25 @@ function findExesInDir(installDir, _depth) {
     try { entries = fs.readdirSync(installDir, { withFileTypes: true }); }
     catch { return []; }
 
+    // ── Collection detection ─────────────────────────────────────────────────
+    // If this folder contains _GAME_ prefixed subfolders, it's a multi-game
+    // collection. Scan each _GAME_ subfolder and return ALL their exes so the
+    // picker can list them grouped by game name.
+    const gameFolders = entries.filter(
+      e => e.isDirectory() && e.name.startsWith('_GAME_')
+    );
+    if (gameFolders.length > 0) {
+      const allExes = [];
+      for (const gf of gameFolders) {
+        const gameDir  = path.join(installDir, gf.name);
+        // Recurse into each game subfolder to find its exe
+        const gameExes = findExesInDir(gameDir, depth + 1);
+        allExes.push(...gameExes);
+      }
+      return allExes;
+    }
+
+    // ── Standard single-game detection ───────────────────────────────────────
     // Check for a 'bin' subfolder first — common pattern for some games
     const binEntry = entries.find(
       e => e.isDirectory() && e.name.toLowerCase() === 'bin'

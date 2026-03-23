@@ -1336,12 +1336,11 @@ async function onDownload() {
   if (!selectedGame) return;
 
   const identifier = selectedGame.identifier;
-  const title      = getTitle(selectedGame);
 
-  // Prevent double-queuing
+  // Prevent double-queuing the whole collection
   if (downloadQueue.has(identifier)) return;
 
-  let fileUrl, fileName;
+  let archives;
   try {
     let files;
     if (fileListCache[identifier]?.files) {
@@ -1356,68 +1355,224 @@ async function onDownload() {
       fileListCache[identifier] = { files, size: null };
     }
 
-    const preferred = files.find(f => /\.zip$/i.test(f.name))
-                   || files.find(f => /\.7z$/i.test(f.name))
-                   || files.find(f => /\.rar$/i.test(f.name))
-                   || files.find(f => /\.exe$/i.test(f.name));
-
-    if (!preferred) { alert('No downloadable file found for this game.'); return; }
-
-    fileName = preferred.name;
-    const encodedName = preferred.name.split('/').map(encodeURIComponent).join('/');
-    fileUrl  = `https://archive.org/download/${identifier}/${encodedName}`;
+    archives = files.filter(f =>
+      /\.(zip|7z|rar)$/i.test(f.name) ||
+      (/\.exe$/i.test(f.name) && !files.some(ff => /\.(zip|7z|rar)$/i.test(ff.name)))
+    );
+    if (!archives.length) { alert('No downloadable file found for this game.'); return; }
   } catch (e) {
     alert('Failed to fetch file list: ' + e.message);
     return;
   }
 
-  // Add to queue
-  dqSet(identifier, { identifier, title, percent: 0, status: 'downloading', startedAt: Date.now() });
-  btnDownload.disabled = true;
+  // If there's only one archive, download it directly (existing behaviour)
+  if (archives.length === 1) {
+    await startSingleDownload(identifier, getTitle(selectedGame), archives[0]);
+    return;
+  }
 
-  // Keep inline progress bar for the currently-viewed game
-  progressWrap.classList.remove('hidden');
-  progressBar.style.width  = '0%';
-  progressText.textContent = '0%';
+  // Multiple archives — show picker modal
+  const selected = await showArchivePicker(identifier, archives);
+  if (!selected || !selected.length) return;
 
-  const result = await window.electronAPI.downloadStart({ identifier, downloadUrl: fileUrl, fileName });
+  // Queue each selected archive as an independent download
+  for (const file of selected) {
+    // Use identifier:basename as the queue key so each file is tracked separately
+    const baseName  = file.name.replace(/\.[^.]+$/, ''); // strip extension for display
+    const queueKey  = `${identifier}:${file.name}`;
+    startSingleDownload(queueKey, baseName, file, identifier);
+  }
+}
 
-  // If the entry was removed from the queue (user cancelled), don't process further
-  if (!downloadQueue.has(identifier)) {
-    progressWrap.classList.add('hidden');
-    refreshButtonStates();
+// Shows a modal listing multiple archive files with checkboxes.
+// Returns an array of selected file objects, or empty array if cancelled.
+function showArchivePicker(identifier, archives) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'exe-picker-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'exe-picker-modal';
+    modal.style.maxWidth = '480px';
+
+    const header = document.createElement('div');
+    header.className = 'exe-picker-header';
+    header.innerHTML = `
+      <h3>Multiple Games in this Collection</h3>
+      <p>Select which games you want to install:</p>
+    `;
+
+    const list = document.createElement('ul');
+    list.className = 'exe-picker-list archive-picker-list';
+
+    archives.forEach(file => {
+      const li = document.createElement('li');
+      li.className = 'archive-picker-item';
+
+      const label = document.createElement('label');
+      label.className = 'archive-picker-label';
+
+      const cb = document.createElement('input');
+      cb.type    = 'checkbox';
+      cb.checked = true; // default all selected
+      cb.dataset.filename = file.name;
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className   = 'archive-picker-name';
+      nameSpan.textContent = file.name.replace(/\.[^.]+$/, ''); // strip extension
+
+      const sizeSpan = document.createElement('span');
+      sizeSpan.className   = 'archive-picker-size';
+      sizeSpan.textContent = file.size ? formatSize(file.size) : '';
+
+      label.appendChild(cb);
+      label.appendChild(nameSpan);
+      label.appendChild(sizeSpan);
+      li.appendChild(label);
+      list.appendChild(li);
+    });
+
+    // Select all / none controls
+    const selRow = document.createElement('div');
+    selRow.className = 'archive-picker-selrow';
+    const selAll  = document.createElement('button');
+    selAll.className   = 'archive-picker-selall';
+    selAll.textContent = 'Select All';
+    selAll.addEventListener('click', () => {
+      list.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = true);
+    });
+    const selNone = document.createElement('button');
+    selNone.className   = 'archive-picker-selall';
+    selNone.textContent = 'Select None';
+    selNone.addEventListener('click', () => {
+      list.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = false);
+    });
+    selRow.appendChild(selAll);
+    selRow.appendChild(selNone);
+
+    const footer = document.createElement('div');
+    footer.className = 'exe-picker-footer';
+    const btnRow = document.createElement('div');
+    btnRow.className = 'exe-picker-btn-row';
+
+    const installBtn = document.createElement('button');
+    installBtn.className   = 'exe-picker-launch';
+    installBtn.textContent = 'Install Selected';
+    installBtn.addEventListener('click', () => {
+      const checked = [...list.querySelectorAll('input[type=checkbox]')]
+        .filter(c => c.checked)
+        .map(c => archives.find(f => f.name === c.dataset.filename))
+        .filter(Boolean);
+      cleanup();
+      resolve(checked);
+    });
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className   = 'exe-picker-cancel';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', () => { cleanup(); resolve([]); });
+
+    btnRow.appendChild(installBtn);
+    btnRow.appendChild(cancelBtn);
+    footer.appendChild(btnRow);
+
+    modal.appendChild(header);
+    modal.appendChild(selRow);
+    modal.appendChild(list);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) { cleanup(); resolve([]); }
+    });
+
+    function cleanup() { document.body.removeChild(overlay); }
+  });
+}
+
+// Downloads, extracts, and installs a single archive file.
+// queueKey   — key used in downloadQueue (identifier for single games, identifier:filename for collections)
+// title      — display name shown in Downloads Modal
+// file       — { name, size } from archive.org file list
+// parentId   — for collection items, the archive.org identifier (used for install_dir naming)
+//              When set, this game extracts into a subfolder inside the parent's install dir,
+//              and the parent identifier is registered as the installed entry (not the individual game).
+async function startSingleDownload(queueKey, title, file, parentId) {
+  const identifier = parentId || queueKey;
+  if (downloadQueue.has(queueKey)) return;
+
+  const encodedName = file.name.split('/').map(encodeURIComponent).join('/');
+  const fileUrl     = `https://archive.org/download/${identifier}/${encodedName}`;
+
+  dqSet(queueKey, { identifier: queueKey, title, percent: 0, status: 'downloading', startedAt: Date.now() });
+
+  // Only show inline progress bar for single-game installs (not collection items)
+  const isPrimary = !parentId;
+  if (isPrimary) {
+    btnDownload.disabled = true;
+    progressWrap.classList.remove('hidden');
+    progressBar.style.width  = '0%';
+    progressText.textContent = '0%';
+  }
+
+  const result = await window.electronAPI.downloadStart({
+    identifier: queueKey,
+    downloadUrl: fileUrl,
+    fileName:    file.name,
+  });
+
+  if (!downloadQueue.has(queueKey)) {
+    if (isPrimary) { progressWrap.classList.add('hidden'); refreshButtonStates(); }
     return;
   }
 
   if (!result.ok) {
-    dqSet(identifier, { status: 'error', finishedAt: Date.now() });
-    setTimeout(() => { downloadQueue.delete(identifier); renderDownloadQueue(); updateDownloadsButton(); }, 4000);
-    progressWrap.classList.add('hidden');
-    refreshButtonStates();
+    dqSet(queueKey, { status: 'error', finishedAt: Date.now() });
+    setTimeout(() => { downloadQueue.delete(queueKey); updateDownloadsButton(); }, 4000);
+    if (isPrimary) { progressWrap.classList.add('hidden'); refreshButtonStates(); }
     return;
   }
 
-  dqSet(identifier, { status: 'extracting', percent: 100 });
-  progressBar.style.width  = '100%';
-  progressText.textContent = '100%';
+  dqSet(queueKey, { status: 'extracting', percent: 100 });
+  if (isPrimary) {
+    progressBar.style.width  = '100%';
+    progressText.textContent = '100%';
+  }
 
-  const extractResult = await window.electronAPI.extractArchive({ filePath: result.filePath, identifier });
-  progressWrap.classList.add('hidden');
+  // Collection items: extract into a named subfolder inside the parent identifier's
+  // install directory. e.g. ni-ghts-into-dreams_202511/Crazy Taxi/
+  // Single games: extract into the identifier folder as normal.
+  const extractResult = await window.electronAPI.extractArchive({
+    filePath:    result.filePath,
+    identifier:  identifier,           // always the archive.org identifier for the parent dir
+    subFolder:   parentId ? title : null, // subfolder name = game title for collection items
+  });
+
+  if (isPrimary) progressWrap.classList.add('hidden');
 
   if (!extractResult.ok) {
-    dqSet(identifier, { status: 'error' });
-    setTimeout(() => { downloadQueue.delete(identifier); renderDownloadQueue(); }, 4000);
+    dqSet(queueKey, { status: 'error' });
+    setTimeout(() => { downloadQueue.delete(queueKey); }, 4000);
     return;
   }
 
-  const exePaths = await window.electronAPI.findExes({ installDir: extractResult.installDir });
+  // For both single games and collection items, register the parent identifier
+  // pointing to the parent install dir. findExesInDir will recurse into subfolders
+  // to find all executables across all games in the collection.
+  const parentInstallDir = extractResult.parentInstallDir || extractResult.installDir;
+  const exePaths = await window.electronAPI.findExes({ installDir: parentInstallDir });
   const exePath  = exePaths.length === 1 ? exePaths[0] : null;
 
-  await window.electronAPI.installGame({ identifier, installDir: extractResult.installDir, exePath });
+  await window.electronAPI.installGame({
+    identifier: identifier,
+    installDir: parentInstallDir,
+    exePath,
+  });
 
   library = await window.electronAPI.getLibrary();
-  dqDone(identifier);
-  btnDownload.textContent = 'Install';
+  dqDone(queueKey);
+
   if (selectedGame?.identifier === identifier) {
     refreshButtonStates();
     const installed = library[identifier];
@@ -1486,22 +1641,74 @@ function showExePicker(exePaths, installDir, identifier) {
     modal.className = 'exe-picker-modal';
     const header = document.createElement('div');
     header.className = 'exe-picker-header';
-    header.innerHTML = `<h3>Select Executable</h3><p>Multiple executables found. Choose one to launch:</p>`;
+
+    // Detect if this is a multi-game collection (any path contains _GAME_)
+    const isCollection = exePaths.some(p => p.includes('_GAME_'));
+    header.innerHTML = isCollection
+      ? `<h3>Select a Game to Launch</h3><p>This is a collection — choose which game to play:</p>`
+      : `<h3>Select Executable</h3><p>Multiple executables found. Choose one to launch:</p>`;
+
     const list = document.createElement('ul');
     list.className = 'exe-picker-list';
-    exePaths.forEach(p => {
-      const li  = document.createElement('li');
-      const rel = p.startsWith(installDir) ? p.slice(installDir.length).replace(/^[\\/]/, '') : p;
-      li.textContent = rel;
-      li.title = p;
-      li.addEventListener('click', () => {
-        list.querySelectorAll('li').forEach(el => el.classList.remove('selected'));
-        li.classList.add('selected');
-        selectedExe = p;
-        launchBtn.disabled = false;
+
+    if (isCollection) {
+      // Group exes by their _GAME_ parent folder
+      // e.g. .../ni-ghts-into-dreams_202511/_GAME_Crazy Taxi/CrazyTaxi.exe
+      const groups = {}; // gameName → [exePath, ...]
+      exePaths.forEach(p => {
+        const match = p.match(/_GAME_([^\\/]+)[\\/]/);
+        const gameName = match ? match[1] : 'Unknown';
+        if (!groups[gameName]) groups[gameName] = [];
+        groups[gameName].push(p);
       });
-      list.appendChild(li);
-    });
+
+      Object.entries(groups).forEach(([gameName, paths]) => {
+        // Group header
+        const groupHeader = document.createElement('li');
+        groupHeader.className = 'exe-picker-group-header';
+        groupHeader.textContent = gameName; // clean name, no _GAME_ prefix
+        list.appendChild(groupHeader);
+
+        // Exe rows within this group
+        paths.forEach(p => {
+          // Extract the path after the _GAME_<name> folder segment.
+          // e.g. C:\Games\_GAME_Crazy Taxi\subdir\Crazy Taxi.exe  →  subdir\Crazy Taxi.exe
+          // e.g. C:\Games\_GAME_Crazy Taxi\Crazy Taxi.exe         →  Crazy Taxi.exe
+          const gameMarker = '_GAME_' + gameName;
+          const markerIdx  = p.indexOf(gameMarker);
+          const rel = markerIdx !== -1
+            ? p.slice(markerIdx + gameMarker.length).replace(/^[\\/]/, '')
+            : p.split(/[\\/]/).pop();
+
+          const li = document.createElement('li');
+          li.className = 'exe-picker-game-item';
+          li.textContent = rel;
+          li.title = p;
+          li.addEventListener('click', () => {
+            list.querySelectorAll('li.exe-picker-game-item, li:not(.exe-picker-group-header)').forEach(el => el.classList.remove('selected'));
+            li.classList.add('selected');
+            selectedExe = p;
+            launchBtn.disabled = false;
+          });
+          list.appendChild(li);
+        });
+      });
+    } else {
+      // Standard single-game exe list
+      exePaths.forEach(p => {
+        const li  = document.createElement('li');
+        const rel = p.startsWith(installDir) ? p.slice(installDir.length).replace(/^[\\/]/, '') : p;
+        li.textContent = rel;
+        li.title = p;
+        li.addEventListener('click', () => {
+          list.querySelectorAll('li').forEach(el => el.classList.remove('selected'));
+          li.classList.add('selected');
+          selectedExe = p;
+          launchBtn.disabled = false;
+        });
+        list.appendChild(li);
+      });
+    }
     const footer = document.createElement('div');
     footer.className = 'exe-picker-footer';
     const defaultWrap = document.createElement('label');
