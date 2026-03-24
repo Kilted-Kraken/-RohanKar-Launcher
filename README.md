@@ -2,7 +2,7 @@
 
 A desktop game launcher for the classic PC game collection uploaded to [Archive.org](https://archive.org/search?query=uploader%3Arohanjackson071%40gmail.com) by **rohanjackson071**. Browse, install, and launch games from a single polished interface — no account required.
 
-![RohanKar Launcher Screenshot](assets/screenshot.png)
+![RohanKar Launcher Screenshot]
 <img width="1280" height="800" alt="Screenshot 2026-03-23 221326" src="https://github.com/user-attachments/assets/bd3b0e92-6f0f-4d99-9138-b4e0deae2155" />
 
 ---
