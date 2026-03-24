@@ -887,8 +887,8 @@ input:focus, select:focus { border-color: var(--accent); }
 }
 #btn-manage-collections {
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   padding: 4px;
   font-size: 16px;
   line-height: 1;
@@ -2101,6 +2101,184 @@ input:focus, select:focus { border-color: var(--accent); }
 }
 #btn-clear-default:hover { background: var(--bg2); color: var(--danger); border-color: var(--danger); }
 
+/* ─── On-Screen Keyboard (OSK) ─────────────────────────────────────────────── */
+#gp-osk {
+  position: fixed;
+  bottom: 44px; /* above the hint bar */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 620px;
+  max-width: 98vw;
+  background: rgba(10, 10, 14, 0.97);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 14px 14px 10px;
+  z-index: 99990;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.7);
+}
+#gp-osk-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  text-align: center;
+}
+#gp-osk-preview {
+  background: var(--bg3);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--text);
+  min-height: 34px;
+  text-align: left;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+#gp-osk-keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.osk-row {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+}
+.osk-key {
+  min-width: 40px;
+  height: 38px;
+  padding: 0 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  flex: 1;
+  max-width: 46px;
+}
+.osk-key:hover { background: var(--bg2); border-color: var(--accent); }
+.osk-key.osk-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 8px rgba(217, 48, 37, 0.6);
+}
+.osk-key-wide {
+  min-width: 64px;
+  max-width: 80px;
+  flex: 1.5;
+}
+.osk-key-space {
+  min-width: 120px;
+  max-width: 200px;
+  flex: 4;
+}
+.osk-key-done {
+  background: var(--bg3);
+  border-color: var(--success);
+  color: var(--success);
+}
+.osk-key-done:hover { background: var(--success); color: #000; }
+.osk-key-done.osk-active { background: var(--success); color: #000; border-color: var(--success); }
+.osk-shifted {
+  border-color: #f5c842;
+  color: #f5c842;
+}
+
+/* Gamepad focus highlight on detail action buttons and modal items */
+.gp-focused {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 8px rgba(217, 48, 37, 0.5) !important;
+}
+/* Checkboxes are small — give them a more visible focus ring */
+input[type="checkbox"].gp-focused {
+  outline-offset: 4px !important;
+  box-shadow: 0 0 0 3px rgba(217, 48, 37, 0.5), 0 0 10px rgba(217, 48, 37, 0.4) !important;
+  accent-color: var(--accent);
+}
+/* Row-level highlight for collection list items when their checkbox is focused */
+.gp-row-focused {
+  background: rgba(217, 48, 37, 0.08) !important;
+  border-radius: 6px;
+}
+
+/* Gamepad virtual mouse cursor */
+#gp-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+  z-index: 99999;
+  color: #fff;
+  filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.8)) drop-shadow(0 0 6px var(--accent));
+  will-change: transform;
+  transform: translate(0px, 0px);
+}
+#gp-cursor svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+/* When mouse mode is active, show real cursor too so it doesn't flicker */
+body.gp-mouse-mode * { cursor: none !important; }
+
+/* Gamepad hint bar */
+#gamepad-hint-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 36px;
+  background: rgba(10, 10, 12, 0.92);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  z-index: 9999;
+  padding: 0 20px;
+  transition: transform 0.25s ease;
+}
+#gamepad-hint-bar.hidden {
+  display: none;
+}
+.gp-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.gp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 5px;
+  background: var(--bg3);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
 /* Exe picker — collection group headers */
 .exe-picker-group-header {
   padding: 6px 12px 4px;
@@ -2196,4 +2374,34 @@ input:focus, select:focus { border-color: var(--accent); }
 #about-links a {
   display: flex;
   align-items: center;
+}
+
+/* ─── Add to Steam button ──────────────────────────────────────────── */
+#btn-add-to-steam {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  width: 34px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+#btn-add-to-steam svg {
+  width: 40px;
+  height: 32px;
+  flex-shrink: 0;
+  display: block;
+}
+#btn-add-to-steam:hover {
+  background: var(--bg2);
+  border-color: #4a90d9;
+  color: #4a90d9;
+}
+#btn-add-to-steam.steam-added {
+  border-color: var(--success);
+  color: var(--success);
 }

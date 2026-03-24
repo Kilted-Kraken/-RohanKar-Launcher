@@ -468,6 +468,8 @@ async function init() {
   });
 
   document.getElementById('btn-save-notes').addEventListener('click', onSaveNotes);
+  document.getElementById('btn-add-to-steam').addEventListener('click', onAddToSteam);
+  document.getElementById('btn-add-to-steam').addEventListener('click', onAddToSteam);
 
   const initSettings = await window.electronAPI.getSettings();
   installedFirst     = !!initSettings.installedFirst;
@@ -627,8 +629,9 @@ function onGlobalKeydown(e) {
     const targetGame = sorted[nextIdx];
     if (targetGame) {
       showDetailView(targetGame);
-      // Scroll the card into view
-      cards[nextIdx]?.scrollIntoView({ block: 'nearest' });
+      // Re-query after re-render so we have a live reference
+      const freshCards = [...libraryGrid.querySelectorAll('.game-card')];
+      gpScrollCardIntoView(freshCards[nextIdx]);
     }
     return;
   }
@@ -649,6 +652,7 @@ function updateSearchClear() {
 
 // ─── Settings modal ───────────────────────────────────────────────────────────
 async function openSettings() {
+  gpModalFocusIdx = 0;
   const s = await window.electronAPI.getSettings();
   downloadPathInput.value           = s.downloadPath || '';
   installPathInput.value            = s.installPath  || '';
@@ -960,6 +964,7 @@ function updateDownloadsButton() {
 }
 
 function openDownloadsModal() {
+  gpModalFocusIdx = 0;
   renderDownloadsModal();
   document.getElementById('downloads-modal').classList.remove('hidden');
 }
@@ -1300,8 +1305,13 @@ async function refreshButtonStates() {
   btnDownload.disabled = installed || downloadQueue.has(selectedGame.identifier);
   btnLaunch.disabled   = !installed;
   btnDelete.disabled   = !installed;
-  if (installed) btnOpenLocation.classList.remove('hidden');
-  else           btnOpenLocation.classList.add('hidden');
+  if (installed) {
+    btnOpenLocation.classList.remove('hidden');
+    document.getElementById('btn-add-to-steam')?.classList.remove('hidden');
+  } else {
+    btnOpenLocation.classList.add('hidden');
+    document.getElementById('btn-add-to-steam')?.classList.add('hidden');
+  }
   if (installed && lib?.exe_path) {
     const exePaths = await window.electronAPI.findExes({ installDir: lib.install_dir });
     if (exePaths.length > 1) btnClearDefault.classList.remove('hidden');
@@ -1814,6 +1824,197 @@ function renderCollectionChips(identifier) {
 }
 
 // ─── Notes ────────────────────────────────────────────────────────────────────
+// ─── Add to Steam ──────────────────────────────────────────────────────────────────────────────
+
+async function onAddToSteam() {
+  if (!selectedGame) return;
+  const lib = library[selectedGame.identifier];
+  if (!lib?.install_dir) return;
+
+  // Always find all exes and show the picker — even if there's only one,
+  // so the user knows exactly which exe is being added to Steam.
+  const exes = await window.electronAPI.findExes({ installDir: lib.install_dir });
+  if (!exes.length) {
+    alert('Cannot add to Steam: no executable found in the install folder.');
+    return;
+  }
+
+  const picked = await showSteamExePicker(exes, lib.install_dir);
+  if (!picked) return; // user cancelled
+
+  const btn = document.getElementById('btn-add-to-steam');
+  btn.disabled = true;
+  btn.title = 'Adding to Steam…';
+
+  try {
+    // StartDir must be the folder containing the exe, not the root install dir
+    const startDir = picked.substring(0, picked.lastIndexOf('\\'));
+    const result = await window.electronAPI.addToSteam({
+      appName:  getTitle(selectedGame),
+      exePath:  picked,
+      startDir: startDir,
+    });
+
+    if (!result.ok) {
+      alert(`Failed to add to Steam:\n${result.error}`);
+      btn.disabled = false;
+      btn.title = 'Add to Steam library';
+      return;
+    }
+
+    if (result.alreadyAdded) {
+      btn.classList.add('steam-added');
+      btn.title = '✓ Already in Steam';
+      setTimeout(() => {
+        btn.classList.remove('steam-added');
+        btn.disabled = false;
+        btn.title = 'Add to Steam library';
+      }, 2500);
+    } else {
+      btn.classList.add('steam-added');
+      btn.title = '✓ Added to Steam!';
+      setTimeout(() => {
+        alert('✓ Added to Steam!\n\nRestart Steam for the shortcut to appear under Non-Steam Games.');
+        btn.classList.remove('steam-added');
+        btn.disabled = false;
+        btn.title = 'Add to Steam library';
+      }, 400);
+    }
+  } catch (e) {
+    alert('Error adding to Steam: ' + e.message);
+    btn.disabled = false;
+    btn.title = 'Add to Steam library';
+  }
+}
+
+// Shows a modal listing all found executables so the user can choose
+// which one gets added as the Steam shortcut. Returns the chosen path or null.
+function showSteamExePicker(exePaths, installDir) {
+  return new Promise((resolve) => {
+    let selectedExe = null;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'exe-picker-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'exe-picker-modal';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'exe-picker-header';
+    header.innerHTML = `
+      <h3>Add to Steam</h3>
+      <p>Choose which executable Steam should launch for this game:</p>
+    `;
+
+    // Exe list
+    const list = document.createElement('ul');
+    list.className = 'exe-picker-list';
+
+    // Detect collection layout (paths containing _GAME_)
+    const isCollection = exePaths.some(p => p.includes('_GAME_'));
+
+    if (isCollection) {
+      // Group by _GAME_ subfolder, same as the launch picker
+      const groups = {};
+      exePaths.forEach(p => {
+        const match = p.match(/_GAME_([^\\/]+)[\\/]/);
+        const gameName = match ? match[1] : 'Unknown';
+        if (!groups[gameName]) groups[gameName] = [];
+        groups[gameName].push(p);
+      });
+
+      Object.entries(groups).forEach(([gameName, paths]) => {
+        const groupHeader = document.createElement('li');
+        groupHeader.className = 'exe-picker-group-header';
+        groupHeader.textContent = gameName;
+        list.appendChild(groupHeader);
+
+        paths.forEach(p => {
+          const gameMarker = '_GAME_' + gameName;
+          const markerIdx  = p.indexOf(gameMarker);
+          const rel = markerIdx !== -1
+            ? p.slice(markerIdx + gameMarker.length).replace(/^[\\/]/, '')
+            : p.split(/[\\/]/).pop();
+
+          const li = document.createElement('li');
+          li.className = 'exe-picker-game-item';
+          li.textContent = rel;
+          li.title = p;
+          li.addEventListener('click', () => {
+            list.querySelectorAll('li.exe-picker-game-item').forEach(el => el.classList.remove('selected'));
+            li.classList.add('selected');
+            selectedExe = p;
+            addBtn.disabled = false;
+          });
+          list.appendChild(li);
+        });
+      });
+    } else {
+      exePaths.forEach(p => {
+        const rel = p.startsWith(installDir)
+          ? p.slice(installDir.length).replace(/^[\\/]/, '')
+          : p.split(/[\\/]/).pop();
+
+        const li = document.createElement('li');
+        li.textContent = rel;
+        li.title = p;
+        li.addEventListener('click', () => {
+          list.querySelectorAll('li').forEach(el => el.classList.remove('selected'));
+          li.classList.add('selected');
+          selectedExe = p;
+          addBtn.disabled = false;
+        });
+        list.appendChild(li);
+
+        // Auto-select if only one exe
+        if (exePaths.length === 1) {
+          li.classList.add('selected');
+          selectedExe = p;
+        }
+      });
+    }
+
+    // Footer
+    const footer = document.createElement('div');
+    footer.className = 'exe-picker-footer';
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'exe-picker-btn-row';
+
+    const addBtn = document.createElement('button');
+    addBtn.className   = 'exe-picker-launch';
+    addBtn.textContent = 'Add to Steam';
+    addBtn.disabled    = exePaths.length !== 1; // pre-enabled only when auto-selected
+    addBtn.addEventListener('click', () => {
+      if (!selectedExe) return;
+      cleanup();
+      resolve(selectedExe);
+    });
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className   = 'exe-picker-cancel';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', () => { cleanup(); resolve(null); });
+
+    btnRow.appendChild(addBtn);
+    btnRow.appendChild(cancelBtn);
+    footer.appendChild(btnRow);
+
+    modal.appendChild(header);
+    modal.appendChild(list);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) { cleanup(); resolve(null); }
+    });
+
+    function cleanup() { document.body.removeChild(overlay); }
+  });
+}
+
 async function onSaveNotes() {
   if (!selectedGame) return;
   const notesInput = document.getElementById('notes-input');
@@ -1849,6 +2050,7 @@ function renderCollectionFilter() {
 }
 
 function openCollectionsModal() {
+  gpModalFocusIdx = 0;
   renderCollectionsList();
   document.getElementById('collections-modal').classList.remove('hidden');
 }
@@ -1983,6 +2185,9 @@ let bannerRotateTimer = null;
 
 function showHomeView() {
   currentView = 'home';
+  gpFocus = 'sidebar-games';
+  gpClearDetailHighlight();
+  gpClearMenuHighlight();
   document.getElementById('home-view').classList.remove('hidden');
   document.getElementById('detail-panel').classList.add('hidden');
   document.getElementById('hero').style.display = 'none';
@@ -1992,6 +2197,9 @@ function showHomeView() {
 
 function showDetailView(game) {
   currentView = 'detail';
+  // Reset detail focus index when switching games so it never goes out of bounds
+  gpDetailFocusIdx = 0;
+  gpClearDetailHighlight();
   document.getElementById('home-view').classList.add('hidden');
   document.getElementById('detail-panel').classList.remove('hidden');
   document.getElementById('hero').style.display = '';
@@ -2260,5 +2468,939 @@ function renderHomeRandomPick(forceNew) {
   wrap.appendChild(card);
 }
 
+// ─── Gamepad / Controller Support ───────────────────────────────────────────
+//
+// Uses the standard Gamepad API (navigator.getGamepads()) polled via rAF.
+// Button indices follow the W3C Standard Gamepad layout (Xbox / PS controllers).
+//
+// Button map:
+//   0  = A / Cross        → Confirm / Launch / Select item
+//   1  = B / Circle       → Back / Cancel / Go Home
+//   2  = X / Square       → Install (Download)
+//   3  = Y / Triangle     → Toggle Favourite
+//   4  = LB / L1          → Previous detail tab
+//   5  = RB / R1          → Next detail tab
+//   8  = Select / Share   → Open Settings
+//   9  = Start / Options  → Open Downloads modal
+//   12 = D-pad Up         → Navigate sidebar up
+//   13 = D-pad Down       → Navigate sidebar down
+//   14 = D-pad Left       → (reserved)
+//   15 = D-pad Right      → (reserved)
+//   Axis 1 (Left stick Y) → Navigate sidebar (with auto-repeat)
+
+const GP = {
+  // Timing
+  REPEAT_DELAY:    400,   // ms before auto-repeat starts
+  REPEAT_INTERVAL: 120,   // ms between repeated nav steps
+  STICK_DEADZONE:  0.35,  // ignore stick values below this
+
+  // Mouse mode
+  MOUSE_SPEED:   12,      // pixels per frame at full stick deflection
+  mouseMode:     false,
+  mouseX:        0,
+  mouseY:        0,
+
+  // State
+  connected:     false,
+  prevButtons:   {},      // buttonIndex → bool (was pressed last frame)
+  repeatTimers:  {},      // buttonIndex → { started, last }
+  rafId:         null,
+  hintVisible:   false,
+};
+
+// Button index constants
+const BTN_A      = 0;
+const BTN_B      = 1;
+const BTN_X      = 2;
+const BTN_Y      = 3;
+const BTN_LB     = 4;
+const BTN_RB     = 5;
+const BTN_SELECT = 8;
+const BTN_START  = 9;
+const BTN_L3     = 10; // Left stick click — toggles mouse mode
+const BTN_UP     = 12;
+const BTN_DOWN   = 13;
+const BTN_LT     = 6;  // Left trigger  — sidebar: up to menu zone
+const BTN_RT     = 7;  // Right trigger — sidebar: down to games zone
+const BTN_LEFT   = 14; // D-pad left  — cycle detail buttons left / exit detail
+const BTN_RIGHT  = 15; // D-pad right — cycle detail buttons right / enter detail
+
+// Focus context
+// 'sidebar-menu'  = top controls (search, sort, filters, bottom buttons)
+// 'sidebar-games' = game list cards
+// 'detail'        = action buttons on the detail panel
+let gpFocus = 'sidebar-games';
+
+// ── Sidebar menu zone ─────────────────────────────────────────────────────────
+// All focusable items in sidebar-top, in order
+function gpGetMenuItems() {
+  return [
+    document.getElementById('btn-home'),
+    document.getElementById('search-input'),
+    document.getElementById('sort-filter'),
+    document.getElementById('btn-filter-all'),
+    document.getElementById('btn-filter-favorites'),
+    document.getElementById('collection-filter'),
+    document.getElementById('btn-manage-collections'),
+    document.getElementById('btn-downloads'),
+    document.getElementById('btn-settings'),
+    document.getElementById('btn-about'),
+  ].filter(el => el && getComputedStyle(el).display !== 'none');
+}
+
+let gpMenuIdx = 0; // which sidebar menu item is focused
+
+// ── Detail panel action buttons ───────────────────────────────────────────────
+function gpGetDetailButtons() {
+  const candidates = [
+    document.getElementById('btn-launch'),
+    document.getElementById('btn-download'),
+    document.getElementById('btn-delete'),
+    document.getElementById('btn-favorite'),
+    document.getElementById('btn-add-to-collection'),
+    document.getElementById('btn-open-location'),
+  ];
+  return candidates.filter(b => {
+    if (!b) return false;
+    if (b.disabled) return false;
+    if (b.classList.contains('hidden')) return false;
+    if (getComputedStyle(b).display === 'none') return false;
+    return true;
+  });
+}
+
+let gpDetailFocusIdx = 0;
+
+// ── Generic modal focusable items ─────────────────────────────────────────────
+function gpGetModalFocusables(modalEl) {
+  // Query only true interactive elements — checkboxes inside .add-coll-item
+  // and .collection-item rows are included directly; the container rows themselves
+  // are excluded so we never highlight the whole label box.
+  return [...modalEl.querySelectorAll(
+    'button:not(:disabled):not(.hidden), ' +
+    'input[type="checkbox"]:not(:disabled), ' +
+    'input[type="text"]:not(:disabled), ' +
+    'input[type="color"]:not(:disabled), ' +
+    'select:not(:disabled), ' +
+    'textarea:not(:disabled)'
+  )].filter(el => {
+    const s = getComputedStyle(el);
+    return s.display !== 'none' && s.visibility !== 'hidden';
+  });
+}
+
+let gpModalFocusIdx = 0;
+
+function gpInit() {
+  window.addEventListener('gamepadconnected', (e) => {
+    console.log('[gamepad] connected:', e.gamepad.id);
+    GP.connected = true;
+    gpShowHint(true);
+    if (!GP.rafId) GP.rafId = requestAnimationFrame(gpPoll);
+  });
+  window.addEventListener('gamepaddisconnected', () => {
+    console.log('[gamepad] disconnected');
+    GP.connected = false;
+    GP.prevButtons = {};
+    GP.repeatTimers = {};
+    gpShowHint(false);
+  });
+}
+
+function gpShowHint(visible) {
+  GP.hintVisible = visible;
+  const bar = document.getElementById('gamepad-hint-bar');
+  if (!bar) return;
+  if (visible) {
+    bar.classList.remove('hidden');
+    gpUpdateHint();
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+function gpUpdateHint() {
+  const bar = document.getElementById('gamepad-hint-bar');
+  if (!bar || !GP.hintVisible) return;
+
+  // Pick hints based on current context
+  const anyModal = document.querySelector(
+    '.exe-picker-overlay, #downloads-modal:not(.hidden), #settings-modal:not(.hidden), ' +
+    '#about-modal:not(.hidden), #collections-modal:not(.hidden), #add-collection-modal:not(.hidden)'
+  );
+
+  let hints = [];
+  if (GP.mouseMode) {
+    hints = [
+      { btn: 'LS', label: 'Move cursor' },
+      { btn: 'A',  label: 'Click' },
+      { btn: 'B',  label: 'Exit mouse mode' },
+    ];
+  } else if (anyModal) {
+    hints = [
+      { btn: 'A', label: 'Confirm' },
+      { btn: 'B', label: 'Cancel / Close' },
+      { btn: '↕', label: 'Navigate' },
+    ];
+  } else if (gpFocus === 'sidebar-menu') {
+    hints = [
+      { btn: '↕',  label: 'Navigate' },
+      { btn: 'A',  label: 'Select / Type' },
+      { btn: 'RT', label: 'Game list' },
+      { btn: 'B',  label: 'Back' },
+    ];
+  } else if (currentView === 'detail') {
+    const lib = selectedGame ? library[selectedGame.identifier] : null;
+    const installed = !!lib?.install_dir;
+    if (gpFocus === 'detail') {
+      hints = [
+        { btn: 'A',     label: 'Select' },
+        { btn: '↔',     label: 'Move' },
+        { btn: 'B',     label: 'Back' },
+        { btn: 'LB RB', label: 'Tabs' },
+      ];
+    } else {
+      hints = [
+        { btn: '↕',     label: 'Browse' },
+        { btn: '→',     label: 'Actions' },
+        installed ? { btn: 'A', label: 'Launch' } : { btn: 'X', label: 'Install' },
+        { btn: 'B',     label: 'Home' },
+        { btn: 'LB RB', label: 'Tabs' },
+      ];
+    }
+  } else {
+    hints = [
+      { btn: 'LT',  label: 'Menu' },
+      { btn: '↕',   label: 'Browse' },
+      { btn: 'A',   label: 'Select' },
+    ];
+  }
+
+  bar.innerHTML = hints.map(h =>
+    `<span class="gp-hint"><span class="gp-btn">${h.btn}</span>${h.label}</span>`
+  ).join('');
+}
+
+function gpPoll(timestamp) {
+  if (!GP.connected) return;
+  GP.rafId = requestAnimationFrame(gpPoll);
+
+  const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+  const gp = [...gamepads].find(g => g && g.connected);
+  if (!gp) return;
+
+  // ── Process buttons ────────────────────────────────────────────────────────
+  gp.buttons.forEach((btn, idx) => {
+    const pressed = btn.pressed;
+    const wasPrev = !!GP.prevButtons[idx];
+
+    if (pressed && !wasPrev) {
+      // Fresh press
+      GP.repeatTimers[idx] = { started: timestamp, last: timestamp };
+      gpHandleButton(idx, true);
+    } else if (pressed && wasPrev) {
+      // Auto-repeat for navigation buttons only
+      if (idx === BTN_UP || idx === BTN_DOWN) {
+        const t = GP.repeatTimers[idx];
+        if (t) {
+          const sinceStart = timestamp - t.started;
+          const sinceLast  = timestamp - t.last;
+          if (sinceStart > GP.REPEAT_DELAY && sinceLast > GP.REPEAT_INTERVAL) {
+            t.last = timestamp;
+            gpHandleButton(idx, false); // false = repeat, not fresh
+          }
+        }
+      }
+    } else if (!pressed && wasPrev) {
+      // Released
+      delete GP.repeatTimers[idx];
+    }
+
+    GP.prevButtons[idx] = pressed;
+  });
+
+  // ── Mouse mode: left stick (axes 0,1) moves cursor ────────────────────────
+  if (GP.mouseMode) {
+    const lsX = gp.axes[0] || 0;
+    const lsY = gp.axes[1] || 0;
+    if (Math.abs(lsX) > GP.STICK_DEADZONE || Math.abs(lsY) > GP.STICK_DEADZONE) {
+      // Apply deadzone scaling so movement is proportional to stick deflection
+      const scaleX = Math.sign(lsX) * Math.max(0, Math.abs(lsX) - GP.STICK_DEADZONE) / (1 - GP.STICK_DEADZONE);
+      const scaleY = Math.sign(lsY) * Math.max(0, Math.abs(lsY) - GP.STICK_DEADZONE) / (1 - GP.STICK_DEADZONE);
+      GP.mouseX = Math.max(0, Math.min(window.innerWidth,  GP.mouseX + scaleX * GP.MOUSE_SPEED));
+      GP.mouseY = Math.max(0, Math.min(window.innerHeight, GP.mouseY + scaleY * GP.MOUSE_SPEED));
+      gpMoveCursor(GP.mouseX, GP.mouseY);
+    }
+    return; // skip stick-nav when in mouse mode
+  }
+
+  // ── Left stick Y axis → up/down navigation ─────────────────────────────────
+  const axisY    = gp.axes[1] || 0;
+  const stickIdx = 100;
+  if (Math.abs(axisY) > GP.STICK_DEADZONE) {
+    const dir = axisY > 0 ? BTN_DOWN : BTN_UP;
+    const t = GP.repeatTimers[stickIdx];
+    if (!t) {
+      GP.repeatTimers[stickIdx] = { started: timestamp, last: timestamp };
+      gpHandleButton(dir, true);
+    } else {
+      const sinceStart = timestamp - t.started;
+      const sinceLast  = timestamp - t.last;
+      if (sinceStart > GP.REPEAT_DELAY && sinceLast > GP.REPEAT_INTERVAL) {
+        t.last = timestamp;
+        gpHandleButton(dir, false);
+      }
+    }
+  } else {
+    delete GP.repeatTimers[stickIdx];
+  }
+
+  // ── Left stick X axis → cycle detail buttons or enter/exit detail focus ───
+  const axisX     = gp.axes[0] || 0;
+  const stickXIdx = 101;
+  if (Math.abs(axisX) > GP.STICK_DEADZONE) {
+    const dir = axisX > 0 ? BTN_RIGHT : BTN_LEFT;
+    const t = GP.repeatTimers[stickXIdx];
+    if (!t) {
+      GP.repeatTimers[stickXIdx] = { started: timestamp, last: timestamp };
+      gpHandleButton(dir, true);
+    } else {
+      const sinceStart = timestamp - t.started;
+      const sinceLast  = timestamp - t.last;
+      if (sinceStart > GP.REPEAT_DELAY && sinceLast > GP.REPEAT_INTERVAL * 2) {
+        t.last = timestamp;
+        gpHandleButton(dir, true);
+      }
+    }
+  } else {
+    delete GP.repeatTimers[stickXIdx];
+  }
+
+  // ── LT (btn 6) = focus sidebar | RT (btn 7) = focus detail panel ────────
+  // On Xbox/standard controllers, LT = button index 6, RT = button index 7.
+  // These are already handled in the button loop above via gpHandleButton,
+  // but we need specific constants for them to route to panel switching.
+  // BTN_LT and BTN_RT are handled in the button loop as fresh presses.
+}
+
+function gpHandleButton(idx, isFresh) {
+  // Only act on fresh presses for non-nav buttons
+  if (!isFresh && idx !== BTN_UP && idx !== BTN_DOWN && idx !== BTN_LEFT && idx !== BTN_RIGHT) return;
+
+  // ── OSK intercept ────────────────────────────────────────────────────────────────
+  if (gpHandleOSK(idx, isFresh)) return;
+
+  // ── Mouse mode intercept ──────────────────────────────────────────────────
+  if (GP.mouseMode && isFresh) {
+    if (idx === BTN_A) {
+      gpMouseClick(GP.mouseX, GP.mouseY);
+      return;
+    }
+    if (idx === BTN_B) {
+      gpToggleMouseMode(); // B exits mouse mode
+      return;
+    }
+    if (idx === BTN_L3) {
+      gpToggleMouseMode(); // L3 also toggles off
+      return;
+    }
+    // All other buttons passthrough while in mouse mode
+    return;
+  }
+
+  // ── Modal context ──────────────────────────────────────────────────────────
+  // exe/archive picker overlay
+  const exeOverlay = document.querySelector('.exe-picker-overlay');
+  if (exeOverlay) {
+    if (isFresh) gpHandleModal_ExePicker(idx, exeOverlay);
+    return;
+  }
+
+  // Generic modal handler — handles downloads, settings, collections, add-collection
+  const openModal = [
+    { el: document.getElementById('downloads-modal'),       close: closeDownloadsModal },
+    { el: document.getElementById('settings-modal'),        close: closeSettings },
+    { el: document.getElementById('about-modal'),           close: closeAbout },
+    { el: document.getElementById('collections-modal'),     close: closeCollectionsModal },
+    { el: document.getElementById('add-collection-modal'), close: closeAddCollectionModal },
+  ].find(m => m.el && !m.el.classList.contains('hidden'));
+
+  if (openModal) {
+    if (!isFresh && idx !== BTN_UP && idx !== BTN_DOWN && idx !== BTN_LEFT && idx !== BTN_RIGHT) return;
+    const focusables = gpGetModalFocusables(openModal.el);
+    const len = Math.max(focusables.length, 1);
+
+    switch (idx) {
+      case BTN_UP:
+      case BTN_LEFT:
+        gpModalFocusIdx = (gpModalFocusIdx - 1 + len) % len;
+        gpHighlightModalItem(focusables);
+        break;
+      case BTN_DOWN:
+      case BTN_RIGHT:
+        gpModalFocusIdx = (gpModalFocusIdx + 1) % len;
+        gpHighlightModalItem(focusables);
+        break;
+      case BTN_A: {
+        if (!isFresh) break;
+        const item = focusables[gpModalFocusIdx];
+        if (!item) break;
+        if (item.tagName === 'INPUT' && item.type === 'checkbox') {
+          item.click();
+        } else if (item.tagName === 'INPUT' && item.type !== 'checkbox') {
+          gpOpenOSK(item);
+        } else if (item.tagName === 'TEXTAREA') {
+          gpOpenOSK(item);
+        } else if (item.tagName === 'SELECT') {
+          item.selectedIndex = (item.selectedIndex + 1) % item.options.length;
+          item.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+          item.click();
+        }
+        break;
+      }
+      case BTN_B:
+        if (isFresh) openModal.close();
+        break;
+    }
+    return;
+  }
+
+  // ── Main UI ────────────────────────────────────────────────────────────────
+  switch (idx) {
+
+    // ── LT / RT: toggle between sidebar menu zone and games zone ──────────
+    case BTN_LT:
+      if (isFresh) {
+        if (gpFocus === 'sidebar-games') {
+          // Move up to menu
+          gpClearDetailHighlight();
+          gpClearMenuHighlight();
+          gpFocus = 'sidebar-menu';
+          gpMenuIdx = 0;
+          gpHighlightMenuItem();
+        } else if (gpFocus === 'sidebar-menu') {
+          // Move down to games
+          gpClearMenuHighlight();
+          gpFocus = 'sidebar-games';
+        }
+        gpUpdateHint();
+      }
+      break;
+
+    case BTN_RT:
+      if (isFresh) {
+        if (gpFocus === 'sidebar-games') {
+          // Move up to menu
+          gpClearDetailHighlight();
+          gpClearMenuHighlight();
+          gpFocus = 'sidebar-menu';
+          gpMenuIdx = 0;
+          gpHighlightMenuItem();
+        } else if (gpFocus === 'sidebar-menu') {
+          // Move down to games
+          gpClearMenuHighlight();
+          gpFocus = 'sidebar-games';
+        }
+        gpUpdateHint();
+      }
+      break;
+
+    // ── Up/Down: navigate current zone ─────────────────────────────
+    case BTN_UP:
+    case BTN_DOWN: {
+      const navDir = idx === BTN_DOWN ? 1 : -1;
+      if (gpFocus === 'sidebar-menu') {
+        gpNavigateMenu(navDir);
+      } else {
+        gpNavigateSidebar(navDir);
+      }
+      break;
+    }
+
+    // ── Left/Right: navigate menu zone OR cycle detail buttons ──────────
+    case BTN_RIGHT:
+      if (isFresh) {
+        if (gpFocus === 'sidebar-menu') {
+          gpNavigateMenu(1);
+        } else if (gpFocus === 'detail') {
+          gpNavigateDetailButtons(1);
+        } else if (currentView === 'detail') {
+          // Enter detail focus from sidebar-games
+          gpClearMenuHighlight();
+          gpFocus = 'detail';
+          gpDetailFocusIdx = 0;
+          gpHighlightDetailButton();
+        }
+      }
+      break;
+
+    case BTN_LEFT:
+      if (isFresh) {
+        if (gpFocus === 'sidebar-menu') {
+          gpNavigateMenu(-1);
+        } else if (gpFocus === 'detail') {
+          if (gpDetailFocusIdx > 0) {
+            gpNavigateDetailButtons(-1);
+          } else {
+            gpFocus = 'sidebar-games';
+            gpClearDetailHighlight();
+          }
+        }
+      }
+      break;
+
+    // ── A: confirm ──────────────────────────────────────────────────
+    case BTN_A:
+      if (isFresh) {
+        if (gpFocus === 'detail' && currentView === 'detail') {
+          const btns = gpGetDetailButtons();
+          btns[gpDetailFocusIdx]?.click();
+        } else if (gpFocus === 'sidebar-menu') {
+          const items = gpGetMenuItems();
+          const item = items[gpMenuIdx];
+          if (!item) break;
+          // Text inputs — open on-screen keyboard
+          if (item.tagName === 'INPUT' && item.type !== 'checkbox') {
+            gpOpenOSK(item);
+          } else if (item.tagName === 'SELECT') {
+            // Cycle through select options
+            item.selectedIndex = (item.selectedIndex + 1) % item.options.length;
+            item.dispatchEvent(new Event('change', { bubbles: true }));
+          } else {
+            item.click();
+          }
+        } else if (currentView === 'detail') {
+          const lib = selectedGame ? library[selectedGame.identifier] : null;
+          if (lib?.install_dir) onLaunch();
+          else if (!btnDownload.disabled) onDownload();
+        } else if (currentView === 'home') {
+          const first = libraryGrid.querySelector('.game-card');
+          if (first) first.click();
+        }
+      }
+      break;
+
+    // ── B: back / go home ──────────────────────────────────────────
+    case BTN_B:
+      if (isFresh) {
+        if (gpFocus === 'detail') {
+          gpFocus = 'sidebar-games';
+          gpClearDetailHighlight();
+        } else if (gpFocus === 'sidebar-menu') {
+          gpClearMenuHighlight();
+          gpFocus = 'sidebar-games';
+        } else if (currentView === 'detail') {
+          showHomeView();
+        }
+      }
+      break;
+
+    // ── X: install ─────────────────────────────────────────────────
+    case BTN_X:
+      if (isFresh && currentView === 'detail' && !btnDownload.disabled) onDownload();
+      break;
+
+    // ── Y: favourite ────────────────────────────────────────────────
+    case BTN_Y:
+      if (isFresh && currentView === 'detail') onToggleFavorite();
+      break;
+
+    // ── LB/RB: cycle tabs ─────────────────────────────────────────────
+    case BTN_LB:
+      if (isFresh && currentView === 'detail') gpCycleTab(-1);
+      break;
+
+    case BTN_RB:
+      if (isFresh && currentView === 'detail') gpCycleTab(1);
+      break;
+
+    case BTN_SELECT:
+      if (isFresh) openSettings();
+      break;
+
+    case BTN_L3:
+      if (isFresh) gpToggleMouseMode();
+      break;
+
+    case BTN_START:
+      if (isFresh) openDownloadsModal();
+      break;
+  }
+
+  gpUpdateHint();
+}
+
+// ── Sidebar menu zone helpers ────────────────────────────────────────────────
+function gpHighlightMenuItem() {
+  gpClearMenuHighlight();
+  const items = gpGetMenuItems();
+  if (!items.length) return;
+  gpMenuIdx = Math.min(gpMenuIdx, items.length - 1);
+  items[gpMenuIdx]?.classList.add('gp-focused');
+}
+
+function gpClearMenuHighlight() {
+  // Only remove from sidebar menu items, not detail buttons
+  gpGetMenuItems().forEach(el => el.classList.remove('gp-focused'));
+}
+
+function gpNavigateMenu(dir) {
+  const items = gpGetMenuItems();
+  if (!items.length) return;
+  gpMenuIdx = (gpMenuIdx + dir + items.length) % items.length;
+  gpHighlightMenuItem();
+}
+
+// ── On-Screen Keyboard (OSK) ────────────────────────────────────────────────────────────────
+const OSK_ROWS = [
+  ['1','2','3','4','5','6','7','8','9','0','-'],
+  ['q','w','e','r','t','y','u','i','o','p'],
+  ['a','s','d','f','g','h','j','k','l'],
+  ['z','x','c','v','b','n','m',',','.'],
+  ['SHIFT', 'SPACE', 'BKSP', 'DONE'],
+];
+
+let oskTargetInput = null;  // the input element the OSK is typing into
+let oskShift      = false;
+let oskRow        = 0;
+let oskCol        = 0;
+let oskActive     = false;
+
+function gpOpenOSK(inputEl) {
+  if (document.getElementById('gp-osk')) return; // already open
+  oskTargetInput = inputEl;
+  oskShift       = false;
+  oskRow         = 0;
+  oskCol         = 0;
+  oskActive      = true;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'gp-osk';
+
+  const label = document.createElement('div');
+  label.id = 'gp-osk-label';
+  label.textContent = inputEl.placeholder || 'Enter text';
+  overlay.appendChild(label);
+
+  const preview = document.createElement('div');
+  preview.id = 'gp-osk-preview';
+  preview.textContent = inputEl.value || '';
+  overlay.appendChild(preview);
+
+  const keyboard = document.createElement('div');
+  keyboard.id = 'gp-osk-keyboard';
+  overlay.appendChild(keyboard);
+
+  document.body.appendChild(overlay);
+  oskRenderKeys();
+}
+
+function gpCloseOSK() {
+  document.getElementById('gp-osk')?.remove();
+  oskActive      = false;
+  oskTargetInput = null;
+}
+
+function oskRenderKeys() {
+  const keyboard = document.getElementById('gp-osk-keyboard');
+  if (!keyboard) return;
+  keyboard.innerHTML = '';
+
+  OSK_ROWS.forEach((row, r) => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'osk-row';
+    row.forEach((key, c) => {
+      const btn = document.createElement('button');
+      btn.className = 'osk-key';
+      if (key === 'SHIFT') btn.className += oskShift ? ' osk-key-wide osk-shifted' : ' osk-key-wide';
+      else if (key === 'SPACE') btn.className += ' osk-key-space';
+      else if (key === 'BKSP') btn.className += ' osk-key-wide';
+      else if (key === 'DONE') btn.className += ' osk-key-wide osk-key-done';
+
+      if (r === oskRow && c === oskCol) btn.classList.add('osk-active');
+
+      btn.textContent = key === 'SPACE' ? '␣ Space' :
+                        key === 'BKSP'  ? '⌫' :
+                        key === 'DONE'  ? '✓ Done' :
+                        key === 'SHIFT' ? (oskShift ? '⇧ SHIFT' : '⇧ shift') :
+                        oskShift ? key.toUpperCase() : key;
+
+      btn.addEventListener('click', () => oskHandleKey(key));
+      rowEl.appendChild(btn);
+    });
+    keyboard.appendChild(rowEl);
+  });
+}
+
+function oskHandleKey(key) {
+  if (!oskTargetInput) return;
+
+  if (key === 'DONE') {
+    // Commit and close
+    oskTargetInput.dispatchEvent(new Event('input', { bubbles: true }));
+    oskTargetInput.dispatchEvent(new Event('change', { bubbles: true }));
+    gpCloseOSK();
+    return;
+  }
+
+  if (key === 'BKSP') {
+    oskTargetInput.value = oskTargetInput.value.slice(0, -1);
+  } else if (key === 'SHIFT') {
+    oskShift = !oskShift;
+    oskRenderKeys();
+    return;
+  } else if (key === 'SPACE') {
+    oskTargetInput.value += ' ';
+  } else {
+    oskTargetInput.value += oskShift ? key.toUpperCase() : key;
+    if (oskShift) { oskShift = false; } // auto un-shift after one char
+  }
+
+  // Update preview
+  const preview = document.getElementById('gp-osk-preview');
+  if (preview) preview.textContent = oskTargetInput.value || '';
+
+  oskRenderKeys();
+  // Fire input event so search/filter updates in real time
+  oskTargetInput.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function oskNavigate(dr, dc) {
+  const maxRow = OSK_ROWS.length - 1;
+  oskRow = Math.max(0, Math.min(maxRow, oskRow + dr));
+  const maxCol = OSK_ROWS[oskRow].length - 1;
+  oskCol = Math.max(0, Math.min(maxCol, oskCol + dc));
+  oskRenderKeys();
+}
+
+// Intercept gamepad input when OSK is open
+function gpHandleOSK(idx, isFresh) {
+  if (!isFresh && idx !== BTN_UP && idx !== BTN_DOWN && idx !== BTN_LEFT && idx !== BTN_RIGHT) return false;
+  if (!oskActive || !document.getElementById('gp-osk')) return false;
+
+  switch (idx) {
+    case BTN_UP:    oskNavigate(-1, 0); break;
+    case BTN_DOWN:  oskNavigate(1, 0);  break;
+    case BTN_LEFT:  oskNavigate(0, -1); break;
+    case BTN_RIGHT: oskNavigate(0, 1);  break;
+    case BTN_A:
+      if (isFresh) {
+        const row = OSK_ROWS[oskRow];
+        if (row) oskHandleKey(row[oskCol]);
+      }
+      break;
+    case BTN_B:
+      if (isFresh) {
+        // B = backspace
+        oskHandleKey('BKSP');
+      }
+      break;
+    case BTN_Y:
+      if (isFresh) oskHandleKey('SHIFT');
+      break;
+    case BTN_X:
+      if (isFresh) oskHandleKey('SPACE');
+      break;
+    case BTN_START:
+      if (isFresh) oskHandleKey('DONE');
+      break;
+  }
+  return true; // consumed by OSK
+}
+
+function gpHighlightModalItem(focusables) {
+  // Clear highlights from all focusables and their parent rows
+  focusables.forEach(el => {
+    el.classList.remove('gp-focused');
+    el.closest('.add-coll-item, .collection-item')?.classList.remove('gp-row-focused');
+  });
+  // Also sweep any stale row highlights not covered above
+  document.querySelectorAll('.gp-row-focused').forEach(el => el.classList.remove('gp-row-focused'));
+
+  if (!focusables.length) return;
+  gpModalFocusIdx = Math.min(gpModalFocusIdx, focusables.length - 1);
+  const target = focusables[gpModalFocusIdx];
+  if (!target) return;
+
+  target.classList.add('gp-focused');
+  // If the focused element is inside a collection row, highlight the row too
+  // so the user can see which collection they're on — but only the checkbox gets the ring
+  target.closest('.add-coll-item, .collection-item')?.classList.add('gp-row-focused');
+  target.scrollIntoView({ block: 'nearest' });
+}
+
+// Highlight/unhighlight the currently focused detail button
+function gpHighlightDetailButton() {
+  gpClearDetailHighlight();
+  const btns = gpGetDetailButtons();
+  if (!btns.length) return;
+  gpDetailFocusIdx = Math.min(gpDetailFocusIdx, btns.length - 1);
+  btns[gpDetailFocusIdx]?.classList.add('gp-focused');
+}
+
+function gpClearDetailHighlight() {
+  document.querySelectorAll('.gp-focused').forEach(el => el.classList.remove('gp-focused'));
+}
+
+function gpNavigateDetailButtons(dir) {
+  const btns = gpGetDetailButtons();
+  if (!btns.length) return;
+  gpDetailFocusIdx = (gpDetailFocusIdx + dir + btns.length) % btns.length;
+  gpHighlightDetailButton();
+}
+
+// ── Mouse Mode ────────────────────────────────────────────────────────────────
+function gpToggleMouseMode() {
+  GP.mouseMode = !GP.mouseMode;
+
+  if (GP.mouseMode) {
+    // Centre cursor on screen when entering mouse mode
+    GP.mouseX = window.innerWidth  / 2;
+    GP.mouseY = window.innerHeight / 2;
+    gpCreateCursor();
+    gpMoveCursor(GP.mouseX, GP.mouseY);
+    document.body.classList.add('gp-mouse-mode');
+  } else {
+    gpDestroyCursor();
+    document.body.classList.remove('gp-mouse-mode');
+  }
+  gpUpdateHint();
+}
+
+function gpCreateCursor() {
+  if (document.getElementById('gp-cursor')) return;
+  const el = document.createElement('div');
+  el.id = 'gp-cursor';
+  el.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 0 L4 17 L8 13 L11 20 L13 19 L10 12 L15 12 Z"/>
+    </svg>
+  `;
+  document.body.appendChild(el);
+}
+
+function gpDestroyCursor() {
+  document.getElementById('gp-cursor')?.remove();
+}
+
+function gpMoveCursor(x, y) {
+  const el = document.getElementById('gp-cursor');
+  if (!el) return;
+  el.style.transform = `translate(${x}px, ${y}px)`;
+}
+
+function gpMouseClick(x, y) {
+  const el = document.elementFromPoint(x, y);
+  if (!el) return;
+  // Simulate a real mouse click so all event listeners fire
+  el.dispatchEvent(new MouseEvent('click', {
+    bubbles:    true,
+    cancelable: true,
+    clientX:    x,
+    clientY:    y,
+    view:       window,
+  }));
+}
+
+function gpNavigateSidebar(dir) {
+  // dir: +1 = down, -1 = up
+  const cards = [...libraryGrid.querySelectorAll('.game-card')];
+  if (!cards.length) return;
+
+  const currentIdx = cards.findIndex(c => c.classList.contains('selected'));
+  let nextIdx;
+
+  if (currentIdx === -1) {
+    nextIdx = dir > 0 ? 0 : cards.length - 1;
+  } else if (dir > 0) {
+    nextIdx = currentIdx < cards.length - 1 ? currentIdx + 1 : 0;
+  } else {
+    nextIdx = currentIdx > 0 ? currentIdx - 1 : cards.length - 1;
+  }
+
+  const sorted = getSortedGames(allGames);
+  const targetGame = sorted[nextIdx];
+  if (targetGame) {
+    showDetailView(targetGame);
+    // Query the card AFTER showDetailView re-renders the grid
+    // so we have a live DOM reference, not a stale one
+    const freshCards = [...libraryGrid.querySelectorAll('.game-card')];
+    gpScrollCardIntoView(freshCards[nextIdx]);
+  }
+  gpUpdateHint();
+}
+
+// Scrolls a card into view within the #library-grid scroll container.
+// Uses getBoundingClientRect() for reliable relative positioning regardless
+// of CSS positioning on parent elements.
+function gpScrollCardIntoView(card) {
+  if (!card) return;
+  const grid    = libraryGrid;
+  const padding = 8;
+
+  const gridRect = grid.getBoundingClientRect();
+  const cardRect = card.getBoundingClientRect();
+
+  // Position of card top/bottom relative to the visible grid area
+  const relTop = cardRect.top - gridRect.top;
+  const relBot = cardRect.bottom - gridRect.top;
+
+  if (relTop < padding) {
+    // Card is above the visible area — scroll up
+    grid.scrollTop += relTop - padding;
+  } else if (relBot > grid.clientHeight - padding) {
+    // Card is below the visible area — scroll down
+    grid.scrollTop += relBot - grid.clientHeight + padding;
+  }
+}
+
+function gpCycleTab(dir) {
+  // dir: +1 = next, -1 = previous
+  const tabs = [...document.querySelectorAll('.tab-btn')];
+  if (!tabs.length) return;
+  const activeIdx = tabs.findIndex(t => t.classList.contains('active'));
+  let nextIdx = activeIdx + dir;
+  if (nextIdx < 0) nextIdx = tabs.length - 1;
+  if (nextIdx >= tabs.length) nextIdx = 0;
+  tabs[nextIdx]?.click();
+}
+
+function gpHandleModal_ExePicker(idx, overlay) {
+  const list     = overlay.querySelector('.exe-picker-list');
+  const items    = list ? [...list.querySelectorAll('li:not(.exe-picker-group-header)')] : [];
+  const selected = items.findIndex(li => li.classList.contains('selected'));
+
+  switch (idx) {
+    case BTN_UP:
+    case BTN_DOWN: {
+      if (!items.length) return;
+      let next;
+      if (idx === BTN_UP) {
+        next = selected > 0 ? selected - 1 : items.length - 1;
+      } else {
+        next = selected < items.length - 1 ? selected + 1 : 0;
+      }
+      items[next]?.click();
+      items[next]?.scrollIntoView({ block: 'nearest' });
+      break;
+    }
+    case BTN_A: {
+      // Click the launch/confirm button
+      const confirmBtn = overlay.querySelector('.exe-picker-launch');
+      if (confirmBtn && !confirmBtn.disabled) confirmBtn.click();
+      break;
+    }
+    case BTN_B: {
+      const cancelBtn = overlay.querySelector('.exe-picker-cancel');
+      if (cancelBtn) cancelBtn.click();
+      break;
+    }
+  }
+}
+
 // ─── Start ────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+  gpInit();
+});
