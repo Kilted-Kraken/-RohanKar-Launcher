@@ -37,6 +37,20 @@ A desktop game launcher for the classic PC game collection uploaded to [Archive.
 - Automatically checks for new releases on launch
 - Notifies you when an update is available with a link to download it
 
+### 🎮 Gamepad / Controller Support
+
+- Full gamepad navigation with standard W3C layout (Xbox / PS controllers)
+- Browse the game library, navigate menus, launch and install games entirely with a controller
+- On-screen keyboard for text input (search, notes)
+- Mouse mode via L3 toggle
+- Contextual hint bar showing available controls
+
+### 🎮 Add to Steam
+
+- Add any installed game to your Steam library as a Non-Steam shortcut directly from the launcher
+- Exe picker modal for games with multiple executables
+- Writes correctly-formatted shortcuts.vdf matching Steam's own format
+
 ---
 
 ## Installation
