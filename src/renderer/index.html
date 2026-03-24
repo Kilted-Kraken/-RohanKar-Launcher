@@ -56,23 +56,25 @@
             <button id="btn-search-clear" title="Clear search">✕</button>
           </div>
         </div>
-        <select id="sort-filter">
+        <!-- Filter & Sort condensed button -->
+        <div id="sidebar-filter-bar">
+          <button id="btn-filter-sort" title="Filter &amp; Sort">
+            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="currentColor" style="width:14px;height:14px;flex-shrink:0"><path d="M8 16 L56 16 L38 34 L38 52 L26 46 L26 34 Z"/></svg>
+            <span id="filter-sort-label">ADV Filtering</span>
+          </button>
+          <button id="btn-manage-collections" title="Manage Collections" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;padding:5px 10px;"><svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="currentColor" style="width:16px;height:16px"><path d="M46 24 Q46 23.15 46.6 22.55 47.15 22 48 22 48.85 22 49.45 22.55 50 23.15 50 24 50 24.85 49.45 25.4 48.85 26 48 26 47.15 26 46.6 25.4 46 24.85 46 24 M38 24 Q38 23.15 38.6 22.55 39.15 22 40 22 40.85 22 41.45 22.55 42 23.15 42 24 42 24.85 41.45 25.4 40.85 26 40 26 39.15 26 38.6 25.4 38 24.85 38 24 M12.4 20.15 Q11 21.35 11 24 L11 40 Q11 45 16 45 L48 45 Q53 45 53 40 L53 24 Q53 19 48 19 L28.7 19 29.7 17.95 29.8 17.85 30.85 16 48 16 Q56 16 56 24 L56 40 Q56 48 48 48 L16 48 Q8 48 8 40 L8 24 Q8 19.8 10.2 17.8 L10.25 17.85 10.3 17.95 12.4 20.15 M25.4 22.45 Q25.95 22.85 26 23.8 L26 40.15 Q25.9 41.95 24.1 42 L15.9 42 Q14.05 41.95 14 40.1 L14 23.9 Q14.05 22.9 14.6 22.4 L16.7 24.6 Q18 26 20 26 21.85 26.05 23.3 24.65 L23.3 24.6 25.4 22.45 M38 40 Q38 39.15 38.6 38.55 39.15 38 40 38 40.85 38 41.45 38.55 42 39.15 42 40 42 40.85 41.45 41.4 40.85 42 40 42 39.15 42 38.6 41.4 38 40.85 38 40 M46 40 Q46 39.15 46.6 38.55 47.15 38 48 38 48.85 38 49.45 38.55 50 39.15 50 40 50 40.85 49.45 41.4 48.85 42 48 42 47.15 42 46.6 41.4 46 40.85 46 40 M38 32 Q38 31.15 38.6 30.55 39.15 30 40 30 40.85 30 41.45 30.55 42 31.15 42 32 42 32.85 41.45 33.4 40.85 34 40 34 39.15 34 38.6 33.4 38 32.85 38 32 M46 32 Q46 31.15 46.6 30.55 47.15 30 48 30 48.85 30 49.45 30.55 50 31.15 50 32 50 32.85 49.45 33.4 48.85 34 48 34 47.15 34 46.6 33.4 46 32.85 46 32 M18.85 22.5 L12.45 15.85 Q12 15.35 12 14.65 12 13.95 12.45 13.5 12.9 13 13.6 13 L26.4 13 Q27.05 13 27.55 13.5 28 13.95 28 14.65 28 15.35 27.55 15.85 L21.15 22.5 Q20.65 23 20 23 19.3 23 18.85 22.5 M30 40 Q30 39.15 30.6 38.55 31.15 38 32 38 32.85 38 33.45 38.55 34 39.15 34 40 34 40.85 33.45 41.4 32.85 42 32 42 31.15 42 30.6 41.4 30 40.85 30 40 M30 32 Q30 31.15 30.6 30.55 31.15 30 32 30 32.85 30 33.45 30.55 34 31.15 34 32 34 32.85 33.45 33.4 32.85 34 32 34 31.15 34 30.6 33.4 30 32.85 30 32 M30 24 Q30 23.15 30.6 22.55 31.15 22 32 22 32.85 22 33.45 22.55 34 23.15 34 24 34 24.85 33.45 25.4 32.85 26 32 26 31.15 26 30.6 25.4 30 24.85 30 24"/></svg>Collections</button>
+        </div>
+        <!-- Hidden inputs kept for JS compatibility -->
+        <select id="sort-filter" style="display:none">
           <option value="az">Title A → Z</option>
           <option value="za">Title Z → A</option>
           <option value="date-archived">Date Archived</option>
           <option value="date-published">Date Published</option>
           <option value="developer">Developer</option>
         </select>
-        <div id="sidebar-filter-row">
-          <button id="btn-filter-all" class="filter-pill active">All</button>
-          <button id="btn-filter-favorites" class="filter-pill">★ Favorites</button>
-        </div>
-        <div id="sidebar-collections-row">
-          <select id="collection-filter">
-            <option value="">All Collections</option>
-          </select>
-          <button id="btn-manage-collections" title="Manage Collections"><svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="currentColor" style="width:20px;height:20px"><path d="M46 24 Q46 23.15 46.6 22.55 47.15 22 48 22 48.85 22 49.45 22.55 50 23.15 50 24 50 24.85 49.45 25.4 48.85 26 48 26 47.15 26 46.6 25.4 46 24.85 46 24 M38 24 Q38 23.15 38.6 22.55 39.15 22 40 22 40.85 22 41.45 22.55 42 23.15 42 24 42 24.85 41.45 25.4 40.85 26 40 26 39.15 26 38.6 25.4 38 24.85 38 24 M12.4 20.15 Q11 21.35 11 24 L11 40 Q11 45 16 45 L48 45 Q53 45 53 40 L53 24 Q53 19 48 19 L28.7 19 29.7 17.95 29.8 17.85 30.85 16 48 16 Q56 16 56 24 L56 40 Q56 48 48 48 L16 48 Q8 48 8 40 L8 24 Q8 19.8 10.2 17.8 L10.25 17.85 10.3 17.95 12.4 20.15 M25.4 22.45 Q25.95 22.85 26 23.8 L26 40.15 Q25.9 41.95 24.1 42 L15.9 42 Q14.05 41.95 14 40.1 L14 23.9 Q14.05 22.9 14.6 22.4 L16.7 24.6 Q18 26 20 26 21.85 26.05 23.3 24.65 L23.3 24.6 25.4 22.45 M38 40 Q38 39.15 38.6 38.55 39.15 38 40 38 40.85 38 41.45 38.55 42 39.15 42 40 42 40.85 41.45 41.4 40.85 42 40 42 39.15 42 38.6 41.4 38 40.85 38 40 M46 40 Q46 39.15 46.6 38.55 47.15 38 48 38 48.85 38 49.45 38.55 50 39.15 50 40 50 40.85 49.45 41.4 48.85 42 48 42 47.15 42 46.6 41.4 46 40.85 46 40 M38 32 Q38 31.15 38.6 30.55 39.15 30 40 30 40.85 30 41.45 30.55 42 31.15 42 32 42 32.85 41.45 33.4 40.85 34 40 34 39.15 34 38.6 33.4 38 32.85 38 32 M46 32 Q46 31.15 46.6 30.55 47.15 30 48 30 48.85 30 49.45 30.55 50 31.15 50 32 50 32.85 49.45 33.4 48.85 34 48 34 47.15 34 46.6 33.4 46 32.85 46 32 M18.85 22.5 L12.45 15.85 Q12 15.35 12 14.65 12 13.95 12.45 13.5 12.9 13 13.6 13 L26.4 13 Q27.05 13 27.55 13.5 28 13.95 28 14.65 28 15.35 27.55 15.85 L21.15 22.5 Q20.65 23 20 23 19.3 23 18.85 22.5 M30 40 Q30 39.15 30.6 38.55 31.15 38 32 38 32.85 38 33.45 38.55 34 39.15 34 40 34 40.85 33.45 41.4 32.85 42 32 42 31.15 42 30.6 41.4 30 40.85 30 40 M30 32 Q30 31.15 30.6 30.55 31.15 30 32 30 32.85 30 33.45 30.55 34 31.15 34 32 34 32.85 33.45 33.4 32.85 34 32 34 31.15 34 30.6 33.4 30 32.85 30 32 M30 24 Q30 23.15 30.6 22.55 31.15 22 32 22 32.85 22 33.45 22.55 34 23.15 34 24 34 24.85 33.45 25.4 32.85 26 32 26 31.15 26 30.6 25.4 30 24.85 30 24"/></svg></button>
-        </div>
+        <select id="collection-filter" style="display:none">
+          <option value="">All Collections</option>
+        </select>
         <div id="sidebar-bottom-buttons">
           <button id="btn-downloads" title="Downloads">
             <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M32 6 Q33.25 6 34.1 6.85 35 7.75 35 9 L35 33.4 42.2 26.2 Q43.05 25.35 44.3 25.35 45.55 25.35 46.4 26.2 47.25 27.05 47.25 28.3 47.25 29.55 46.4 30.4 L34.1 42.7 Q33.25 43.55 32 43.55 30.75 43.55 29.9 42.7 L17.6 30.4 Q16.75 29.55 16.75 28.3 16.75 27.05 17.6 26.2 18.45 25.35 19.7 25.35 20.95 25.35 21.8 26.2 L29 33.4 29 9 Q29 7.75 29.9 6.85 30.75 6 32 6 M9 51 Q9 49.75 9.85 48.9 10.75 48 12 48 L52 48 Q53.25 48 54.1 48.9 55 49.75 55 51 55 52.25 54.1 53.15 53.25 54 52 54 L12 54 Q10.75 54 9.85 53.15 9 52.25 9 51"/></svg>
@@ -246,6 +248,49 @@
 
     </main>
   </div><!-- /app -->
+
+  <!-- Filter & Sort modal -->
+  <div id="filter-sort-modal" class="hidden">
+    <div id="filter-sort-inner">
+      <div id="filter-sort-header">
+        <h3>
+          <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="currentColor" style="width:16px;height:16px;vertical-align:middle;margin-right:6px"><path d="M8 16 L56 16 L38 34 L38 52 L26 46 L26 34 Z"/></svg>
+          Filter &amp; Sort
+        </h3>
+        <button id="btn-close-filter-sort">✕</button>
+      </div>
+
+      <div class="filter-sort-section">
+        <div class="filter-sort-section-label">SHOW</div>
+        <div class="filter-sort-pills">
+          <button class="fs-pill active" data-filter="all">All Games</button>
+          <button class="fs-pill" data-filter="favorites">★ Favorites</button>
+          <button class="fs-pill" data-filter="installed">Installed</button>
+        </div>
+      </div>
+
+      <div class="filter-sort-section">
+        <div class="filter-sort-section-label">COLLECTION</div>
+        <div id="fs-collection-list"></div>
+      </div>
+
+      <div class="filter-sort-section">
+        <div class="filter-sort-section-label">SORT BY</div>
+        <div class="filter-sort-pills">
+          <button class="fs-pill active" data-sort="az">A → Z</button>
+          <button class="fs-pill" data-sort="za">Z → A</button>
+          <button class="fs-pill" data-sort="date-archived">Date Added</button>
+          <button class="fs-pill" data-sort="date-published">Year</button>
+          <button class="fs-pill" data-sort="developer">Developer</button>
+        </div>
+      </div>
+
+      <div id="filter-sort-footer">
+        <button id="btn-filter-sort-reset">Reset</button>
+        <button id="btn-filter-sort-done">Done</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Settings modal -->
   <div id="settings-modal" class="hidden">

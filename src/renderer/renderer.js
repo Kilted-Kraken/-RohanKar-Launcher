@@ -314,6 +314,8 @@ function getSortedGames(games) {
 
   if (activeFilter === 'favorites') {
     filtered = filtered.filter(g => library[g.identifier]?.is_favorite);
+  } else if (activeFilter === 'installed') {
+    filtered = filtered.filter(g => !!library[g.identifier]?.install_dir);
   }
 
   if (activeCollection) {
@@ -384,7 +386,7 @@ async function init() {
     });
   }
 
-  // Sort filter
+  // Sort filter (hidden select kept for state; modal drives this now)
   sortFilter.addEventListener('change', () => {
     sortOrder = sortFilter.value;
     renderLibraryGrid();
@@ -420,31 +422,21 @@ async function init() {
   btnClearDefault.addEventListener('click', onClearDefault);
   btnCancelDownload.addEventListener('click', onCancelDownload);
 
-  // Favorites / collections filter pills
-  document.getElementById('btn-filter-all').addEventListener('click', () => {
+  // Filter & Sort modal
+  document.getElementById('btn-filter-sort').addEventListener('click', openFilterSortModal);
+  document.getElementById('btn-close-filter-sort').addEventListener('click', closeFilterSortModal);
+  document.getElementById('filter-sort-modal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('filter-sort-modal')) closeFilterSortModal();
+  });
+  document.getElementById('btn-filter-sort-done').addEventListener('click', closeFilterSortModal);
+  document.getElementById('btn-filter-sort-reset').addEventListener('click', () => {
     activeFilter = 'all';
     activeCollection = '';
-    document.getElementById('btn-filter-all').classList.add('active');
-    document.getElementById('btn-filter-favorites').classList.remove('active');
-    document.getElementById('collection-filter').value = '';
-    renderLibraryGrid();
-  });
-  document.getElementById('btn-filter-favorites').addEventListener('click', () => {
-    activeFilter = 'favorites';
-    activeCollection = '';
-    document.getElementById('btn-filter-favorites').classList.add('active');
-    document.getElementById('btn-filter-all').classList.remove('active');
-    document.getElementById('collection-filter').value = '';
-    renderLibraryGrid();
-  });
-  document.getElementById('collection-filter').addEventListener('change', (e) => {
-    activeCollection = e.target.value;
-    if (activeCollection) {
-      activeFilter = 'all';
-      document.getElementById('btn-filter-all').classList.add('active');
-      document.getElementById('btn-filter-favorites').classList.remove('active');
-    }
-    renderLibraryGrid();
+    sortOrder = 'az';
+    document.getElementById('sort-filter').value = 'az';
+    syncFilterSortModal();
+    applyFilterSort();
+    updateFilterSortLabel();
   });
 
   // Manage collections modal
@@ -763,6 +755,7 @@ async function fetchGames() {
 
     library = await window.electronAPI.getLibrary();
     renderLibraryGrid();
+    updateFilterSortLabel();
     showHomeView();
   } catch (e) {
     libraryGrid.innerHTML = `<p class="loading-msg error">Failed to load games: ${e.message}</p>`;
@@ -1874,7 +1867,7 @@ async function onAddToSteam() {
       btn.classList.add('steam-added');
       btn.title = '✓ Added to Steam!';
       setTimeout(() => {
-        alert('✓ Added to Steam!\n\nRestart Steam for the shortcut to appear under Non-Steam Games.');
+        showToast('✓ Added to Steam! Restart Steam for the shortcut to appear under Non-Steam Games.');
         btn.classList.remove('steam-added');
         btn.disabled = false;
         btn.title = 'Add to Steam library';
@@ -2037,6 +2030,7 @@ function loadNotesForGame(identifier) {
 
 // ─── Collections ──────────────────────────────────────────────────────────────
 function renderCollectionFilter() {
+  // Keep hidden select in sync (used by getSortedGames)
   const sel = document.getElementById('collection-filter');
   const prev = sel.value;
   sel.innerHTML = '<option value="">All Collections</option>';
@@ -2047,6 +2041,124 @@ function renderCollectionFilter() {
     sel.appendChild(opt);
   });
   sel.value = prev;
+  // Also refresh the modal collection pills if modal exists
+  renderFsCollectionPills();
+}
+
+function renderFsCollectionPills() {
+  const container = document.getElementById('fs-collection-list');
+  if (!container) return;
+  container.innerHTML = '';
+  if (!collections.length) {
+    container.innerHTML = '<span style="color:var(--text-dim);font-size:12px;">No collections yet</span>';
+    return;
+  }
+  collections.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'fs-pill' + (String(activeCollection) === String(c.id) ? ' active' : '');
+    btn.textContent = c.name;
+    btn.addEventListener('click', () => {
+      // Toggle: click active collection deselects it
+      if (String(activeCollection) === String(c.id)) {
+        activeCollection = '';
+      } else {
+        activeCollection = String(c.id);
+        activeFilter = 'all';
+        syncFilterSortModal();
+      }
+      renderFsCollectionPills();
+      applyFilterSort();
+      updateFilterSortLabel();
+    });
+    container.appendChild(btn);
+  });
+}
+
+function openFilterSortModal() {
+  syncFilterSortModal();
+  renderFsCollectionPills();
+  document.getElementById('filter-sort-modal').classList.remove('hidden');
+}
+
+function closeFilterSortModal() {
+  document.getElementById('filter-sort-modal').classList.add('hidden');
+}
+
+function syncFilterSortModal() {
+  // Sync SHOW pills
+  document.querySelectorAll('.fs-pill[data-filter]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === activeFilter);
+  });
+  // Sync SORT pills
+  document.querySelectorAll('.fs-pill[data-sort]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sort === sortOrder);
+  });
+  // Wire up pill clicks (idempotent — use data attributes)
+  document.querySelectorAll('.fs-pill[data-filter]').forEach(btn => {
+    btn.onclick = () => {
+      activeFilter = btn.dataset.filter;
+      activeCollection = '';
+      document.querySelectorAll('.fs-pill[data-filter]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderFsCollectionPills();
+      applyFilterSort();
+      updateFilterSortLabel();
+    };
+  });
+  document.querySelectorAll('.fs-pill[data-sort]').forEach(btn => {
+    btn.onclick = () => {
+      sortOrder = btn.dataset.sort;
+      document.getElementById('sort-filter').value = sortOrder;
+      document.querySelectorAll('.fs-pill[data-sort]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      applyFilterSort();
+      updateFilterSortLabel();
+    };
+  });
+}
+
+function applyFilterSort() {
+  renderLibraryGrid();
+}
+
+// ─── Toast notification (gamepad-friendly, no alert() dialogs) ──────────────────
+function showToast(message, duration = 3500) {
+  // Remove any existing toast
+  document.getElementById('app-toast')?.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'app-toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  // Trigger animation
+  requestAnimationFrame(() => toast.classList.add('visible'));
+
+  setTimeout(() => {
+    toast.classList.remove('visible');
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+function updateFilterSortLabel() {
+  const label = document.getElementById('filter-sort-label');
+  const btn   = document.getElementById('btn-filter-sort');
+  if (!label) return;
+
+  const sortLabels = { az: 'A → Z', za: 'Z → A', 'date-archived': 'Date Added', 'date-published': 'Year', developer: 'Developer' };
+  const filterLabel = activeFilter === 'favorites' ? '★ Fav'
+                    : activeFilter === 'installed'  ? 'Installed'
+                    : 'All';
+  const collectionLabel = activeCollection
+    ? collections.find(c => String(c.id) === String(activeCollection))?.name || ''
+    : '';
+
+  const show = collectionLabel || filterLabel;
+  const isDefaultCheck = activeFilter === 'all' && !activeCollection && sortOrder === 'az';
+  label.textContent = isDefaultCheck ? 'ADV Filtering' : `${show} · ${sortLabels[sortOrder] || 'A → Z'}`;
+
+  const isDefault = activeFilter === 'all' && !activeCollection && sortOrder === 'az';
+  btn.classList.toggle('is-active', !isDefault);
 }
 
 function openCollectionsModal() {
@@ -2537,10 +2649,7 @@ function gpGetMenuItems() {
   return [
     document.getElementById('btn-home'),
     document.getElementById('search-input'),
-    document.getElementById('sort-filter'),
-    document.getElementById('btn-filter-all'),
-    document.getElementById('btn-filter-favorites'),
-    document.getElementById('collection-filter'),
+    document.getElementById('btn-filter-sort'),
     document.getElementById('btn-manage-collections'),
     document.getElementById('btn-downloads'),
     document.getElementById('btn-settings'),
@@ -2559,6 +2668,7 @@ function gpGetDetailButtons() {
     document.getElementById('btn-favorite'),
     document.getElementById('btn-add-to-collection'),
     document.getElementById('btn-open-location'),
+    document.getElementById('btn-add-to-steam'),
   ];
   return candidates.filter(b => {
     if (!b) return false;
@@ -2626,7 +2736,8 @@ function gpUpdateHint() {
   // Pick hints based on current context
   const anyModal = document.querySelector(
     '.exe-picker-overlay, #downloads-modal:not(.hidden), #settings-modal:not(.hidden), ' +
-    '#about-modal:not(.hidden), #collections-modal:not(.hidden), #add-collection-modal:not(.hidden)'
+    '#about-modal:not(.hidden), #collections-modal:not(.hidden), #add-collection-modal:not(.hidden), ' +
+    '#filter-sort-modal:not(.hidden)'
   );
 
   let hints = [];
@@ -2823,6 +2934,7 @@ function gpHandleButton(idx, isFresh) {
     { el: document.getElementById('about-modal'),           close: closeAbout },
     { el: document.getElementById('collections-modal'),     close: closeCollectionsModal },
     { el: document.getElementById('add-collection-modal'), close: closeAddCollectionModal },
+    { el: document.getElementById('filter-sort-modal'),    close: closeFilterSortModal },
   ].find(m => m.el && !m.el.classList.contains('hidden'));
 
   if (openModal) {

@@ -2362,6 +2362,165 @@ body.gp-mouse-mode * { cursor: none !important; }
 }
 .archive-picker-selall:hover { background: var(--bg2); color: var(--text); }
 
+/* ─── Filter & Sort bar & modal ───────────────────────────────────── */
+#sidebar-filter-bar {
+  display: flex;
+  gap: 6px;
+  padding: 0 8px 6px;
+  align-items: center;
+}
+#btn-filter-sort {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+}
+#btn-filter-sort:hover { border-color: var(--accent); color: var(--text); }
+#btn-filter-sort.is-active { border-color: var(--accent); color: var(--accent); }
+#filter-sort-label { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+#filter-sort-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 300;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding-top: calc(var(--titlebar-h) + 8px);
+  padding-left: 8px;
+}
+#filter-sort-modal.hidden { display: none; }
+#filter-sort-inner {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: calc(var(--sidebar-w) - 16px);
+  max-height: 80vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+#filter-sort-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+}
+#filter-sort-header h3 {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+}
+#btn-close-filter-sort {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+#btn-close-filter-sort:hover { color: var(--text); background: var(--bg3); }
+.filter-sort-section {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.filter-sort-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.filter-sort-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.fs-pill {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+.fs-pill:hover { border-color: var(--accent-dim); color: var(--text); background: var(--bg3); }
+.fs-pill.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+#fs-collection-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+#filter-sort-footer {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  justify-content: flex-end;
+}
+#btn-filter-sort-reset {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 5px 14px;
+  border-radius: var(--radius);
+}
+#btn-filter-sort-reset:hover { border-color: var(--danger); color: var(--danger); background: none; }
+#btn-filter-sort-done {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  font-size: 12px;
+  padding: 5px 18px;
+  border-radius: var(--radius);
+}
+#btn-filter-sort-done:hover { background: var(--accent-dim); }
+
+/* ─── Toast notification ────────────────────────────────────────────── */
+#app-toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--bg2);
+  border: 1px solid var(--success);
+  color: var(--text);
+  font-size: 13px;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.25s, transform 0.25s;
+  max-width: 380px;
+  text-align: center;
+  pointer-events: none;
+}
+#app-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* About modal link icons */
 .about-link-icon {
   width: 14px;
