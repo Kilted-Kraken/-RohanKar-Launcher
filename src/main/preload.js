@@ -62,6 +62,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Scan for pre-existing installs
   scanForGames:    (opts) => ipcRenderer.invoke('scan-for-games', opts),
 
+  // Add to Steam
+  addToSteam:      (opts) => ipcRenderer.invoke('add-to-steam', opts),
+
   // App info
   getAppVersion:   () => ipcRenderer.invoke('app-version'),
   getHeroesPath:   () => ipcRenderer.invoke('heroes-path'),
