@@ -513,6 +513,28 @@ input:focus, select:focus { border-color: var(--accent); }
   align-items: center;
 }
 #settings-header h2 { font-size: 16px; }
+
+/* Language selector in settings */
+#setting-language {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+}
+#setting-language:focus {
+  border-color: var(--accent);
+}
+#setting-language option {
+  background: var(--bg2);
+  color: var(--text);
+}
+
 #btn-close-settings  {
   background: transparent;
   font-size: 15px;
@@ -1162,7 +1184,7 @@ input:focus, select:focus { border-color: var(--accent); }
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 700;
+  z-index: 900;
   -webkit-app-region: no-drag;
 }
 #collections-modal.hidden,
@@ -1179,7 +1201,7 @@ input:focus, select:focus { border-color: var(--accent); }
   display: flex;
   flex-direction: column;
   box-shadow: 0 16px 50px rgba(0,0,0,0.7);
-  overflow: hidden;
+  overflow: visible;
 }
 #collections-header,
 #add-collection-header {
@@ -1208,10 +1230,16 @@ input:focus, select:focus { border-color: var(--accent); }
   padding: 14px 20px 10px;
   flex-shrink: 0;
   -webkit-app-region: no-drag;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
 }
 #collections-create-row input {
   flex: 1;
   -webkit-app-region: no-drag;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
 }
 #btn-create-collection {
   background: var(--accent);
@@ -1231,6 +1259,8 @@ input:focus, select:focus { border-color: var(--accent); }
   display: flex;
   flex-direction: column;
   gap: 4px;
+  position: relative;
+  z-index: 1;
 }
 .collection-item {
   display: flex;
@@ -1997,16 +2027,18 @@ input:focus, select:focus { border-color: var(--accent); }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
 
 /* ─── Exe picker modal ───────────────────────────────────────────────────────── */
-.exe-picker-overlay {
+.exe-picker-overlay,
+.custom-modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.7);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 600;
+  z-index: 1000;
 }
-.exe-picker-modal {
+.exe-picker-modal,
+.custom-modal-inner {
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 12px;

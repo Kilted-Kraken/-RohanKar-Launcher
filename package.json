@@ -24,7 +24,8 @@
     "productName": "RohanKar Launcher",
     "files": [
       "src/**/*",
-      "assets/**/*"
+      "assets/**/*",
+      "locales/**/*"
     ],
     "extraResources": [
       {
